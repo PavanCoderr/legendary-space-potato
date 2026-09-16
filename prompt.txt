@@ -1,0 +1,759 @@
+Build a functional web application called **QubitVerse**.
+
+QubitVerse is an **AI-Based Interactive Quantum Algorithm Learning Platform**.
+
+The objective is to create one integrated platform where users can learn quantum computing concepts, build quantum circuits, simulate them, visualize quantum states, receive contextual AI guidance, practice problems, and track their progress.
+
+Do not treat this as a static landing page or design prototype.
+
+Build the actual application with working interactions, state management, calculations, and navigation.
+
+---
+
+## CORE PRODUCT FLOW
+
+Implement this complete learning flow:
+
+**Choose Lesson**
+→ **Learn Concept**
+→ **Interactive Exercise**
+→ **Build Circuit**
+→ **Run Simulation**
+→ **Visualize Quantum State**
+→ **Ask AI**
+→ **Complete Challenge**
+→ **Update Progress**
+
+This unified flow is the main purpose of QubitVerse.
+
+---
+
+# 1. APPLICATION STRUCTURE
+
+Create these main areas:
+
+* Dashboard
+* Learn
+* Lesson
+* Circuit Builder
+* Simulator
+* AI Quantum Tutor
+* Practice
+* Progress
+* Projects
+* Settings
+
+The application should have working navigation between these areas.
+
+---
+
+# 2. DASHBOARD
+
+Create a functional learning dashboard.
+
+Display:
+
+* Current learning progress
+* Continue learning
+* Recent projects
+* Practice streak
+* Recommended lesson
+* Quick actions
+* Completed lessons
+* Quiz/challenge performance
+
+Example learning topics:
+
+* Qubits
+* Superposition
+* Entanglement
+* Quantum Gates
+* Algorithms
+
+These are the initial learning topics defined for QubitVerse.
+
+Allow the user to continue a previously started lesson.
+
+---
+
+# 3. LEARNING SYSTEM
+
+Implement an actual lesson system.
+
+Each lesson should contain:
+
+1. Concept explanation
+2. Interactive example
+3. Circuit example
+4. Simulation
+5. Visualization
+6. AI explanation
+7. Practice challenge
+
+Initial lessons:
+
+### Qubits
+
+Explain the basic concept of a quantum bit.
+
+### Superposition
+
+Demonstrate how a Hadamard gate affects a qubit.
+
+### Entanglement
+
+Introduce multi-qubit relationships and CNOT.
+
+### Quantum Gates
+
+Teach common gates.
+
+### Algorithms
+
+Introduce basic quantum algorithms.
+
+Do not create meaningless placeholder lessons.
+
+Use structured educational content appropriate for beginners.
+
+---
+
+# 4. SUPERPOSITION INTERACTIVE DEMO
+
+Make this the first fully working quantum demonstration.
+
+Initial state:
+
+`|0⟩`
+
+Allow the user to apply:
+
+`H`
+
+When H is applied:
+
+* Update the quantum state
+* Update probabilities
+* Update the circuit
+* Update the visualization
+* Provide an explanation
+
+Expected conceptual result:
+
+`|0⟩ ≈ 50%`
+
+`|1⟩ ≈ 50%`
+
+The user should be able to understand what happened without leaving the lesson.
+
+---
+
+# 5. QUANTUM CIRCUIT BUILDER
+
+Implement a functional circuit builder.
+
+Users must be able to create circuits using quantum gates.
+
+Initially support:
+
+* H
+* X
+* Y
+* Z
+* S
+* T
+* CNOT / CX
+* Measurement
+
+Circuit example:
+
+```text
+q0 ── H ── X ── M
+q1 ── H ── Z ── M
+```
+
+Required functionality:
+
+* Add qubits
+* Add gates
+* Remove gates
+* Move gates where practical
+* Select gates
+* Clear circuit
+* Reset circuit
+* Run circuit
+* Save circuit
+* Load saved circuit
+
+Maintain an internal representation of the circuit rather than only drawing visual elements.
+
+---
+
+# 6. QUANTUM SIMULATION
+
+Implement a lightweight quantum simulator.
+
+Do not fake simulation results.
+
+The simulator should calculate results based on the circuit.
+
+At minimum support:
+
+* Single-qubit states
+* Multi-qubit states
+* H
+* X
+* Y
+* Z
+* CNOT
+* Measurement
+
+Allow configurable measurement shots.
+
+Example:
+
+```text
+Shots: 1000
+
+|0⟩ : 502
+|1⟩ : 498
+```
+
+Results may naturally vary because of measurement randomness.
+
+The same circuit must produce corresponding results everywhere in the application.
+
+For example:
+
+Circuit Builder
+↓
+Simulator
+↓
+Probability results
+↓
+Bloch Sphere
+↓
+AI Tutor
+
+All should use the same circuit/state information.
+
+---
+
+# 7. QUANTUM STATE VISUALIZATION
+
+Implement quantum-state visualization.
+
+For single qubits, provide a Bloch Sphere representation.
+
+The Bloch Sphere should update when gates are applied.
+
+Example:
+
+```text
+|0⟩
+ ↓
+H
+ ↓
+Superposition
+```
+
+When possible, animate the state transition.
+
+Display:
+
+* Current state
+* Applied gate
+* State vector
+* Probabilities
+
+The Bloch Sphere is one of QubitVerse's key differentiating features.
+
+---
+
+# 8. SIMULATOR RESULTS
+
+After running a circuit, show:
+
+### Circuit
+
+The executed circuit.
+
+### Quantum State
+
+Current state representation.
+
+### Probabilities
+
+Probability of measurement states.
+
+### Measurement Results
+
+Number of occurrences for each state.
+
+Example:
+
+```text
+1000 shots
+
+|00⟩  49.8%
+|11⟩  50.2%
+```
+
+For Bell-state circuits, the simulator should produce correlated results.
+
+Do not hard-code these numbers.
+
+---
+
+# 9. CODE MODE
+
+Support two ways of creating circuits:
+
+**Visual Circuit**
+
+and
+
+**Quantum Code**
+
+Implement a code editor for quantum circuits.
+
+Example:
+
+```python
+qc = QuantumCircuit(2)
+
+qc.h(0)
+qc.cx(0, 1)
+
+qc.measure_all()
+```
+
+The application should maintain a relationship between the code representation and circuit representation where practical.
+
+If full bidirectional conversion is too complex for the first implementation, prioritize visual circuit → simulator and provide code execution as a separate mode.
+
+---
+
+# 10. AI QUANTUM TUTOR
+
+Implement a contextual AI tutor.
+
+This must not behave like a generic chatbot.
+
+The tutor should understand the current application context.
+
+Provide context such as:
+
+* Current lesson
+* Current circuit
+* Selected gate
+* Quantum state
+* Simulation result
+* User error
+* Current challenge
+
+Supported actions:
+
+* Explain this
+* Why did this happen?
+* Find my mistake
+* Give me a hint
+* Explain my circuit
+* Explain the result
+* Improve my code
+
+Example:
+
+User:
+
+"Why did the H gate give approximately 50/50?"
+
+Tutor:
+
+"The Hadamard gate transforms |0⟩ into an equal superposition of |0⟩ and |1⟩. When measured, both outcomes therefore have approximately equal probability."
+
+If no external LLM API is available, create a contextual local/mock AI service with predefined responses.
+
+The application must still work without an API key.
+
+Keep the AI layer modular so a real LLM can be connected later.
+
+---
+
+# 11. PRACTICE SYSTEM
+
+Create an actual practice system.
+
+Challenges should be connected to lessons.
+
+Example:
+
+### Challenge: Create a Bell State
+
+Objective:
+
+Create an entangled two-qubit state.
+
+Requirements:
+
+* Apply H to q0
+* Apply CNOT between q0 and q1
+* Run the circuit
+* Obtain the expected correlated measurement results
+
+When submitted:
+
+* Validate the circuit
+* Calculate the result
+* Explain errors
+* Mark success/failure
+* Award XP
+* Update progress
+
+---
+
+# 12. QUIZ SYSTEM
+
+Create functional quizzes.
+
+Example:
+
+Question:
+
+**What does the Hadamard gate do to |0⟩?**
+
+Options:
+
+A. Converts |0⟩ directly to |1⟩
+
+B. Creates an equal superposition
+
+C. Measures the qubit
+
+D. Deletes the qubit
+
+After answering:
+
+* Determine correctness
+* Explain the answer
+* Update lesson progress
+* Record the attempt
+
+---
+
+# 13. PROGRESS TRACKING
+
+Track user learning progress.
+
+Track:
+
+* Lesson completion
+* Quiz scores
+* Challenge completion
+* XP
+* Practice streak
+* Topic mastery
+* Projects
+* Simulation activity
+
+Topics:
+
+* Quantum Fundamentals
+* Quantum Gates
+* Algorithms
+* Circuit Building
+* Programming
+
+Progress must update when the user completes lessons, quizzes, or challenges.
+
+Do not use static progress values throughout the application.
+
+---
+
+# 14. PROJECT MANAGEMENT
+
+Allow users to create and save quantum projects.
+
+A project should contain:
+
+* Name
+* Description
+* Circuit
+* Code if available
+* Creation date
+* Last modified date
+* Completion status
+
+Actions:
+
+* Create
+* Open
+* Save
+* Rename
+* Duplicate
+* Delete
+
+Initial sample projects can include:
+
+* Bell State
+* Superposition Experiment
+* Quantum Teleportation
+* Grover Search
+
+---
+
+# 15. DATA MODEL
+
+Create a clean data structure for:
+
+```text
+User
+Lesson
+LessonProgress
+Circuit
+Project
+Quiz
+QuizAttempt
+Challenge
+ChallengeAttempt
+Achievement
+```
+
+Keep the data layer modular.
+
+If there is no backend/database available, use local persistence for the first working version.
+
+Use an architecture that can later be connected to a backend.
+
+---
+
+# 16. STATE MANAGEMENT
+
+Maintain a consistent application state.
+
+Important shared state:
+
+```text
+currentLesson
+currentCircuit
+selectedGate
+quantumState
+simulationResult
+measurementResults
+aiContext
+userProgress
+projects
+```
+
+Circuit Builder, Simulator, Visualization, AI Tutor, and Practice should not maintain conflicting versions of the same circuit.
+
+---
+
+# 17. ERROR HANDLING
+
+Handle invalid circuits gracefully.
+
+Examples:
+
+* Invalid gate placement
+* Invalid qubit index
+* Unsupported operation
+* Simulation error
+* Invalid challenge submission
+
+Provide useful explanations rather than generic errors.
+
+---
+
+# 18. PERFORMANCE
+
+Keep the simulator lightweight.
+
+Avoid unnecessary computation.
+
+Do not add large dependencies unless they are actually required.
+
+Do not introduce external services for features that can reasonably work locally.
+
+---
+
+# 19. ARCHITECTURE
+
+The intended architecture is:
+
+### Frontend
+
+React-based application.
+
+### Visualization
+
+Canvas/WebGL or another suitable browser visualization technology.
+
+### Circuit Construction
+
+Drag-and-drop circuit interaction.
+
+### Backend
+
+Keep API boundaries modular so a Python/Flask backend can be connected.
+
+### Simulation
+
+Lightweight simulator.
+
+### AI
+
+Separate AI service/module.
+
+### LMS
+
+Lessons, quizzes, challenges, and progress tracking.
+
+This follows the project's proposed implementation architecture.
+
+---
+
+# 20. IMPLEMENTATION RULES
+
+Follow these rules strictly:
+
+1. Inspect the existing repository before modifying it.
+2. Reuse existing code when possible.
+3. Do not delete working functionality unnecessarily.
+4. Do not create fake buttons.
+5. Do not create navigation routes that lead nowhere.
+6. Do not hard-code simulation results.
+7. Keep circuit state centralized.
+8. Keep simulation logic separate from rendering.
+9. Keep AI logic separate from UI.
+10. Make components reusable.
+11. Test functionality after implementing each major feature.
+12. Fix errors before moving to the next major feature.
+13. Keep the project runnable at all times.
+14. Avoid unnecessary dependencies.
+15. Do not stop at a static prototype.
+
+---
+
+# 21. DEVELOPMENT ORDER
+
+Implement in this exact priority:
+
+### STEP 1
+
+Inspect existing repository and determine the technology stack.
+
+### STEP 2
+
+Set up application structure and routing.
+
+### STEP 3
+
+Implement dashboard and learning system.
+
+### STEP 4
+
+Implement Superposition lesson.
+
+### STEP 5
+
+Implement quantum circuit data model.
+
+### STEP 6
+
+Implement Circuit Builder.
+
+### STEP 7
+
+Implement lightweight simulator.
+
+### STEP 8
+
+Connect Circuit Builder → Simulator.
+
+### STEP 9
+
+Implement probability and quantum-state results.
+
+### STEP 10
+
+Implement Bloch Sphere visualization.
+
+### STEP 11
+
+Implement AI Quantum Tutor.
+
+### STEP 12
+
+Implement Practice and Quiz systems.
+
+### STEP 13
+
+Implement Progress tracking.
+
+### STEP 14
+
+Implement Projects.
+
+### STEP 15
+
+Test the complete user journey.
+
+---
+
+# 22. PRIMARY DEMO
+
+The following flow MUST work end-to-end:
+
+```text
+Dashboard
+    ↓
+Superposition Lesson
+    ↓
+Interactive H Gate
+    ↓
+Circuit Builder
+    ↓
+Run Circuit
+    ↓
+Quantum Simulation
+    ↓
+Probability Results
+    ↓
+Bloch Sphere
+    ↓
+Ask AI
+    ↓
+Practice Challenge
+    ↓
+Progress Updated
+```
+
+This is the most important demonstration of QubitVerse.
+
+---
+
+# 23. FINAL OBJECTIVE
+
+Build a working QubitVerse application where a beginner can:
+
+1. Learn a quantum concept.
+2. Experiment with it.
+3. Build a circuit.
+4. Run the circuit.
+5. See the result.
+6. Understand the quantum state visually.
+7. Ask an AI tutor why the result occurred.
+8. Solve a related challenge.
+9. Track their learning progress.
+
+The goal is **functional integration**, not simply creating separate pages.
+
+Start working on the existing project now.
+
+First inspect the repository.
+
+Then implement the highest-priority functionality.
+
+Do not spend the majority of the implementation on visual design. Prioritize the underlying application logic, data flow, quantum circuit functionality, simulation, AI context, and working user journey.
+
