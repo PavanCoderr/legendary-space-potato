@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="QubitVerse">
+  <defs>
+    <linearGradient id="orbit" x1="4" y1="8" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c5cff" />
+      <stop offset="1" stop-color="#00d1d1" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#0b0f1e" />
+  <circle cx="32" cy="32" r="13.5" fill="none" stroke="url(#orbit)" stroke-width="3" />
+  <ellipse
+    cx="32"
+    cy="32"
+    rx="25"
+    ry="8.5"
+    fill="none"
+    stroke="url(#orbit)"
+    stroke-width="2.5"
+    opacity="0.9"
+    transform="rotate(-30 32 32)"
+  />
+  <circle cx="51.5" cy="22.5" r="4.6" fill="#ff5f7a" />
+</svg>

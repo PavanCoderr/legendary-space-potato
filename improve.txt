@@ -1,0 +1,146 @@
+================================================================================
+ QubitVerse - improvement report
+================================================================================
+ Written by Buffy (Codebuff) after a full project audit, September 2026.
+ Section 1 is DONE; sections 2-4 are the backlog for future sessions.
+
+--------------------------------------------------------------------------------
+ 1. FIXED - WCAG AA contrast failures (the failing test suite)
+--------------------------------------------------------------------------------
+The suite shipped with 2 failing tests: the WCAG AA contrast audit in
+src/contrast.test.ts reported 9 dark-theme and ~20 light-theme failures.
+
+Root causes and the fixes (all in src/styles.css unless noted):
+
+a) Gate colours were hard-coded hex constants in quantum/gates.ts and were used
+   both as FILLS (circuit-grid boxes) and as TEXT (palette glyphs, inspector,
+   gate reference). As text they were unreadable (1.49-3.81:1, need 4.5).
+   Fix: gate colours are now per-theme CSS custom properties
+   (--gate-h/x/y/z/s/t/cnot/m) plus lightened "-ink" variants
+   (--gate-*-ink) that the UI paints text/icons with. GATE_DEFS[].color now
+   holds var() tokens, so the palette, grid and reference table cannot drift
+   from the theme.
+
+b) Circuit-grid gate boxes always had dark ink (#06080f) even in light theme,
+   where fills are now darkened. Fix: --gate-box-ink token (dark ink in dark
+   theme, white in light theme), consumed by the .gate rule.
+
+c) --dim (fine print) was 3.58-4.27:1 in dark and 2.85-3.34:1 in light.
+   Fix: --dim lightened to #8b93b3 (dark theme) and darkened to #5d6685
+   (light theme). 4.5:1+ on every surface.
+
+d) Status colours (--good/--warn/--bad/--accent-2) failed as text in light
+   theme. Fix: added ink variants (--good-ink/--warn-ink/--bad-ink/
+   --accent-2-ink) per theme; every text/icon usage now reads the ink token
+   (.badge, .toast-icon, .check-mark, .timeline-step, .link, .section-label
+   and all inline styles in components/pages).
+
+e) The primary button gradient stop #5b7cff gave white text only 3.6:1.
+   Fix: --accent-deep + --btn-primary-2 tokens form the gradient and both
+   stops clear 4.5:1 with --btn-primary-ink (white). Same treatment for
+   .btn-accent (--accent-2-deep + --good with dark ink).
+
+f) Input borders (--border) were 1.2-1.4:1 against their field background,
+   far below the WCAG 1.4.11 non-text requirement of 3:1.
+   Fix: --border darkened to #5a6490 (dark) and #7c88ad (light).
+
+g) src/contrast.test.ts now audits what actually ships: per-theme gate ink
+   tokens over chip/panel, --gate-box-ink against every gate fill, button
+   inks against BOTH gradient stops, and the status ink tokens. It can no
+   longer pass while the UI fails.
+
+h) npm run build was broken before this pass: contrast.test.ts imports
+   node:fs/__dirname but @types/node was not installed. Fix: added
+   @types/node as a devDependency (plus a triple-slash reference in the
+   test). Build now completes; it warns about a 519 kB JS chunk (see 3.1).
+
+Verified after the fixes: 86/86 tests pass, tsc --noEmit clean, vite build OK.
+
+--------------------------------------------------------------------------------
+ 2. PERFORMANCE / CODE QUALITY (small, safe wins)
+--------------------------------------------------------------------------------
+2.1 src/quantum/simulator.ts - stateProbabilities() is recomputed inside
+    qubitProbabilities() for every qubit AND again inside the Bloch-vector
+    loop, although runSimulation() already computed it once. Pass the
+    probabilities array in (or add qubitProbabilitiesFrom()) to save ~2n
+    passes over a 2^n vector per run.
+
+2.2 src/quantum/simulator.ts - the shots loop pushes every sampled index into
+    a `samples` array (10k entries at max shots) just to derive per-qubit
+    marginals afterwards. Accumulate zeros/ones per qubit inside the loop and
+    drop the array.
+
+2.3 src/quantum/simulator.ts - elapsedMs does
+    Math.max(0, (now() - started) * 1000) / 1000; the *1000/1000 cancels out.
+    Simplify to Math.max(0, now() - started).
+
+2.4 src/services/api.ts - the HTTP runSimulation() sends { circuit, shots }
+    but drops `seed`, so fixed-seed reproducibility is lost against the
+    backend, and the documented contract table includes seed. Forward
+    options?.seed (and random/now if the backend grows the same semantics).
+
+2.5 GATE_DEFS[].color now holds CSS var() tokens. If any future consumer
+    needs a concrete colour (e.g. canvas drawing), resolve it through
+    getComputedStyle at draw time the way BlochSphere.tsx already does with
+    its own palette - never by parsing the var() string.
+
+2.6 youtubework.txt says itself it can be deleted once the real videos are
+    in (WAY 1/WAY 2 at the top of the file). prompt.txt is the original
+    build brief and could move to docs/ or be removed from the repo root.
+
+--------------------------------------------------------------------------------
+ 3. BUILD / BUNDLE / TOOLING
+--------------------------------------------------------------------------------
+3.1 The production bundle is ~520 kB (152 kB gzip) in one chunk. Vite
+    suggests dynamic import() code splitting. The landing page's Bloch
+    sphere canvas, the YouTube iframe component and the code-editor pages
+    are good lazy-loading candidates.
+
+3.2 No ESLint config exists; tsc is the only static guard. Adding
+    typescript-eslint + eslint-plugin-react-hooks would catch hook-dependency
+    bugs (the project has several hand-rolled useEffect dependency lists).
+
+3.3 No CI. A GitHub Actions workflow running `npm run typecheck && npm test
+    && npm run build` on push/PR would keep the suite green (the contrast
+    failures sat unnoticed in the repo until this audit).
+
+3.4 vitest.config uses environment: 'node' globally with per-file jsdom
+    overrides via // @vitest-environment jsdom. That works, but consider
+    environmentMatchGlobs or workspace projects so jsdom setup is not
+    re-spawned for the pure-quantum test files (they run in ~50 ms; the
+    jsdom files dominate the 17 s suite).
+
+3.5 package-lock.json is committed (good). Consider `npm audit` in CI and
+    a dependabot/renovate config for the React 19 / Vite 8 line.
+
+--------------------------------------------------------------------------------
+ 4. PRODUCT / FEATURES (from the README's own "future" list)
+--------------------------------------------------------------------------------
+4.1 Backend: services/api.ts documents the full Flask contract and the HTTP
+    client already falls back per-endpoint. Implementing GET/PUT/DELETE
+    /state first gives synced progress across devices for free.
+
+4.2 Auth is mocked in the reducer (session/sign-in). The README notes a real
+    service means swapping signIn/signOut - the backend boundary is ready.
+
+4.3 The five teaching videos still use VIDEO_PLACEHOLDER (data/lessons.ts).
+    See youtubework.txt for the two ways to attach them; until then the
+    lesson player renders the "add your video" poster.
+
+4.4 MAX_QUBITS is 8 (256 amplitudes) - plenty for the lessons, but if more
+    gates arrive (RX/RY/RZ, CZ, SWAP), gateReference.ts and GATE_DEFS are the
+    only places to extend, and the contrast audit's GATE_INK_TOKENS list must
+    gain matching tokens (it throws on missing ones, so the failure is loud).
+
+4.5 Accessibility beyond colour: the contrast audit covers 1.4.3/1.4.11, but
+    focus-visible rings, aria-live for the tutor stream and reduced-motion
+    handling for the Bloch-sphere animation are worth an audit pass.
+
+================================================================================
+ Priorities for the next session
+================================================================================
+ 1. Items 2.1-2.4 (simulator + API cleanups, all local, test-covered).
+ 2. Item 3.3 (CI) - cheapest way to never ship red tests again.
+ 3. Item 3.1 (code splitting) once the bundle grows further.
+ 4. Item 4.3 (attach the real videos) - one-line change per module.
+================================================================================

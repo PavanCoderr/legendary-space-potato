@@ -1,0 +1,270 @@
+================================================================================
+ QubitVerse - adding the YouTube teaching videos
+================================================================================
+
+This file is a work note: it tells you how to put the real YouTube videos into the
+five modules. Nothing here is part of the running app, so you can delete this file
+when you are done.
+
+There are two ways to do it:
+
+  WAY 1 - you fill in the LINKS section below, hand the file back to me, and I do
+          the edit (including fixing the fake durations and chapters).
+  WAY 2 - you do it yourself by following PART B. It is a one-line change per
+          module and nothing else in the app needs to change.
+
+
+================================================================================
+ PART A - LINKS (fill these in)
+================================================================================
+
+Paste one link per line after the arrow. Any of these forms works:
+
+    https://www.youtube.com/watch?v=XXXXXXXXXXX
+    https://youtu.be/XXXXXXXXXXX
+    https://www.youtube.com/watch?v=XXXXXXXXXXX&list=PL...&index=2
+    https://www.youtube.com/embed/XXXXXXXXXXX
+    XXXXXXXXXXX                     (the bare id on its own is fine too)
+
+If a module has no video yet, write "none" on the line and I will leave that
+module on the "add your video" placeholder.
+
+  qubits         ->     (title: Qubits, amplitudes and measurement)
+
+  superposition  ->     (title: Superposition and the Hadamard gate)
+
+  entanglement   ->     (title: Entanglement and Bell states)
+
+  gates          ->     (title: The quantum gate toolbox)
+
+  algorithms     ->     (title: Grover, Deutsch-Jozsa and the shape of a quantum
+                         algorithm)
+
+Optional: if you want different display titles, put them after the link, e.g.
+
+  qubits         ->     https://youtu.be/abc123    "Qubits for beginners"
+
+
+================================================================================
+ PART B - do it yourself
+================================================================================
+
+STEP 1. Open this file in the editor:
+
+            src/data/lessons.ts
+
+STEP 2. Each module has a "video" block. Find the one you want and replace the
+        value of "youtubeId". That is the only line you must change.
+
+        Before:
+
+            video: {
+              youtubeId: VIDEO_PLACEHOLDER,
+              title: 'Superposition and the Hadamard gate',
+              duration: '12:45',
+              summary: '...',
+              chapters: [ ... ],
+            },
+
+        After:
+
+            video: {
+              youtubeId: 'https://youtu.be/XXXXXXXXXXX',
+              title: 'Superposition and the Hadamard gate',
+              duration: '12:45',
+              summary: '...',
+              chapters: [ ... ],
+            },
+
+
+IMPORTANT - the durations and chapters are INVENTED PLACEHOLDERS
+
+I wrote the "duration" values (10:25, 12:45, 11:30, 13:10, 15:05) and every
+"chapters" timestamp as plausible-looking filler. They do not match any real
+video. If you drop in a real video and leave them alone, students will see wrong
+durations and the chapter buttons will jump to the wrong moments.
+
+So do ONE of these for each module you add a video to:
+
+  (a) correct them - "duration" is display text only, and each chapter is
+
+            { at: 'MM:SS', label: 'What happens here' }
+
+      ("at" can also be H:MM:SS). Clicking a chapter seeks the player to that
+      time, so they must be the real timestamps.
+
+  (b) delete them - write
+
+            duration: '',
+            chapters: [],
+
+      and the UI hides the chapter list and shows "not watched" instead of a
+      duration. The player and the "Mark as watched" button keep working.
+
+  (c) leave it to me - paste the links in PART A and I will fill in correct
+      durations and chapters by watching each video.
+
+The five modules and where their video blocks are:
+
+    module          line    current fake duration   video title
+    --------------  ------  ----------------------  -----------------------------
+    qubits           44     10:25                   Qubits, amplitudes and
+                                                     measurement
+    superposition   133     12:45                   Superposition and the
+                                                     Hadamard gate
+    entanglement    222     11:30                   Entanglement and Bell states
+    gates           311     13:10                   The quantum gate toolbox
+    algorithms      401     15:05                   Grover, Deutsch-Jozsa and the
+                                                     shape of a quantum algorithm
+
+(The line numbers are where "youtubeId" sits today. If you edit other lessons
+first they will shift, so search for "youtubeId" instead of trusting the number.)
+
+
+================================================================================
+ HOW TO CHECK IT WORKED
+================================================================================
+
+1. Start the app:
+
+        npm run dev
+
+   then open the address it prints (usually http://localhost:5173).
+
+2. Go to  Learn  ->  click a module  ->  Start Learning.
+
+3. Scroll to the "Watch & Learn" stage (it is the second step in the lesson
+   flow, right after the concept).
+
+   - The grey "the player is wired up and waiting" poster should be replaced by
+     the real video player.
+   - "Watch on YouTube" should become a live link that opens in a new tab.
+   - Clicking a chapter should jump the player to that timestamp.
+
+4. Still on that stage, click "Mark as watched".
+
+   - The button flips to "Watched".
+   - Lesson completion goes from 0% to 17% (the video is 1 of the 6
+     checkpoints).
+
+5. If it still shows the poster, the value did not parse. Check that you replaced
+   the whole VIDEO_PLACEHOLDER string, kept the quotes, and did not leave a stray
+   comma or a line break inside the link.
+
+You can also run the test suite, which covers this component:
+
+        npm test
+
+
+================================================================================
+ REFERENCE - the five video blocks as they look today
+================================================================================
+
+For copy/paste convenience, here is the current video block of each module. The
+only thing to change is the youtubeId line unless you are also fixing the
+durations/chapters as described above.
+
+  qubits (src/data/lessons.ts, around line 43):
+
+      video: {
+        youtubeId: VIDEO_PLACEHOLDER,
+        title: 'Qubits, amplitudes and measurement',
+        duration: '10:25',
+        summary:
+          'Why a qubit is a vector of complex amplitudes rather than an unknown bit, and how the Born rule turns those amplitudes into the 0/1 you actually observe.',
+        chapters: [
+          { at: '00:00', label: 'The classical bit' },
+          { at: '01:40', label: 'Amplitudes and normalisation' },
+          { at: '04:10', label: 'The Born rule' },
+          { at: '07:20', label: 'Measurement collapse' },
+          { at: '09:30', label: 'Recap' },
+        ],
+      },
+
+  superposition (around line 132):
+
+      video: {
+        youtubeId: VIDEO_PLACEHOLDER,
+        title: 'Superposition and the Hadamard gate',
+        duration: '12:45',
+        summary:
+          'The H gate step by step: from |0> to |+>, why the measurement becomes a 50/50 coin flip, and how to tell |+> apart from |-> even though their probabilities match.',
+        chapters: [
+          { at: '00:00', label: 'What superposition is (and is not)' },
+          { at: '03:05', label: 'The Hadamard matrix' },
+          { at: '06:20', label: 'Why the probabilities are 50/50' },
+          { at: '09:15', label: 'H twice returns to |0>' },
+          { at: '11:40', label: 'Common mistakes' },
+        ],
+      },
+
+  entanglement (around line 221):
+
+      video: {
+        youtubeId: VIDEO_PLACEHOLDER,
+        title: 'Entanglement and Bell states',
+        duration: '11:30',
+        summary:
+          'How H + CNOT ties two qubits together, why only |00> and |11> ever appear, and what the shrinking Bloch vectors tell you about each individual qubit.',
+        chapters: [
+          { at: '00:00', label: 'Product states' },
+          { at: '02:50', label: 'Building the Bell state' },
+          { at: '05:35', label: 'Perfect correlations' },
+          { at: '08:10', label: 'Reduced states and mixedness' },
+          { at: '10:30', label: 'Why it matters' },
+        ],
+      },
+
+  gates (around line 310):
+
+      video: {
+        youtubeId: VIDEO_PLACEHOLDER,
+        title: 'The quantum gate toolbox',
+        duration: '13:10',
+        summary:
+          'X, Y, Z, S, T, H and CNOT as rotations on the Bloch sphere - which ones move the probabilities, which only move the phase, and how to read a gate sequence.',
+        chapters: [
+          { at: '00:00', label: 'Gates are unitaries' },
+          { at: '02:15', label: 'X, Y, Z' },
+          { at: '05:40', label: 'S and T: phase only' },
+          { at: '08:25', label: 'Hadamard as a diagonal rotation' },
+          { at: '10:50', label: 'CNOT and controlled operations' },
+        ],
+      },
+
+  algorithms (around line 400):
+
+      video: {
+        youtubeId: VIDEO_PLACEHOLDER,
+        title: 'Grover, Deutsch-Jozsa and the shape of a quantum algorithm',
+        duration: '15:05',
+        summary:
+          'Every algorithm in this course follows the same recipe: prepare a superposition, let the oracle interfere with it, then measure. We trace it through Deutsch-Jozsa and Grover on two qubits.',
+        chapters: [
+          { at: '00:00', label: 'Why quantum algorithms work' },
+          { at: '03:20', label: 'Oracles as phase flips' },
+          { at: '06:45', label: 'Deutsch-Jozsa in one query' },
+          { at: '10:15', label: 'Grover amplitude amplification' },
+          { at: '13:30', label: 'What Shor adds' },
+        ],
+      },
+
+
+================================================================================
+ NOTES
+================================================================================
+
+* VIDEO_PLACEHOLDER is defined near the top of src/data/lessons.ts. It is just
+  the string 'YOUTUBE_VIDEO_ID_HERE'. While a module still holds it, that module
+  shows the "add your video" poster instead of a broken iframe - that is
+  deliberate, so the app never looks broken while you collect the links.
+
+* You do not have to touch any component, page or test. The player is one
+  reusable component (src/components/YoutubeLessonVideo.tsx), and the id parsing
+  lives in src/services/youtube.ts.
+
+* Playlists: a link that only has "?list=PL..." and no video id cannot be
+  embedded this way. Send a specific video from the playlist instead.
+
+* Privacy: the player uses youtube-nocookie.com, so nothing is set on the
+  student's browser until they press play.
