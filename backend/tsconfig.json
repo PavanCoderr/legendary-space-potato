@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": "..",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@/*": ["../src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "../src/quantum/index.ts",
+    "../src/quantum/simulator.ts",
+    "../src/quantum/circuit.ts",
+    "../src/quantum/complex.ts",
+    "../src/quantum/gates.ts",
+    "../src/quantum/bloch.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

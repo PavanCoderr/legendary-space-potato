@@ -1,0 +1,65 @@
+# This is an example configuration file
+# To learn more, see the full config.yaml reference: https://docs.continue.dev/reference
+
+name: Vyce AI Config
+version: 1.0.0
+schema: v1
+
+# Define which models can be used
+# https://docs.continue.dev/customization/models
+models:
+  - name: Claude Sonnet 4.6
+    provider: openai
+    model: claude-sonnet-4-6
+    apiKey: sk-d88786a2768b0e3f67a3548bb5d8567e9bce0dec01486d45
+    apiBase: https://vyceai.com/v1
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      contextLength: 270000
+    capabilities:
+      - tool_use
+
+  - name: DeepSeek V4 Flash
+    provider: openai
+    model: deepseek-v4-flash
+    apiKey: sk-d88786a2768b0e3f67a3548bb5d8567e9bce0dec01486d45
+    apiBase: https://vyceai.com/v1
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      contextLength: 270000
+    capabilities:
+      - tool_use
+
+  - name: DeepSeek V4.1
+    provider: openai
+    model: deepseek-v4.1
+    apiKey: sk-d88786a2768b0e3f67a3548bb5d8567e9bce0dec01486d45
+    apiBase: https://vyceai.com/v1
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      contextLength: 270000
+    capabilities:
+      - tool_use
+
+  - name: Agnes 3.0 Flash
+    provider: openai
+    model: agnes-3.0-flash
+    apiKey: sk-d88786a2768b0e3f67a3548bb5d8567e9bce0dec01486d45
+    apiBase: https://vyceai.com/v1
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      contextLength: 512000
+    capabilities:
+      - tool_use
