@@ -234,24 +234,30 @@ describe('QubitVerse application', () => {
     expect(document.body.textContent).toMatch(/17%/);
   });
 
-  it('signs up with a learning level, then signs out to the login screen', () => {
+  it('signs up with a learning level, then signs out to the login screen', async () => {
     mount('#/signup');
     fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Sam Lee' } });
     fireEvent.change(screen.getByLabelText(/^Email$/i), { target: { value: 'sam@university.edu' } });
     // The password field carries a hint, so match the label loosely.
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'quantum123' } });
     fireEvent.click(screen.getByRole('button', { name: /Advanced/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Create account and start learning/i }));
 
-    act(() => {
+    // Signup is async (bcrypt hashing + state hydration), so await the full lifecycle.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Create account and start learning/i }));
+      await new Promise(resolve => setTimeout(resolve, 600));
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
+
     expect(document.body.textContent).toMatch(/Welcome back, Sam Lee/);
     expect(document.body.textContent).toMatch(/Advanced/);
 
-    fireEvent.click(screen.getByRole('button', { name: /Profile menu/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Sign out/i }));
-    act(() => {
+    // Sign out clears the user, so the next fresh signup must NOT leak Sam's progress.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Profile menu/i }));
+      await new Promise(resolve => setTimeout(resolve, 50));
+      fireEvent.click(screen.getByRole('button', { name: /Sign out/i }));
+      await new Promise(resolve => setTimeout(resolve, 300));
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
     expect(screen.getByText(/Welcome back/i)).toBeTruthy();

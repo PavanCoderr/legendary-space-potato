@@ -36,11 +36,12 @@ export interface User {
 export type LearningLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 
 /**
- * Mocked session.
+ * Session state.
  *
- * There is no backend yet, so signing in simply records who is using the app and at
- * what level. Nothing here is a credential: the password is never stored. When the Flask
- * service arrives this becomes a token plus a user record (see services/api.ts).
+ * When the backend is connected, `authToken` holds the JWT issued by /api/login
+ * or /api/signup. It is stored in localStorage alongside the snapshot and sent
+ * as a Bearer token for authenticated API requests. When the backend is not
+ * configured the token stays null and the app falls back to local-only mode.
  */
 export interface Session {
   signedIn: boolean;
@@ -49,6 +50,8 @@ export interface Session {
   signedInAt: string | null;
   /** True while the app is running on the built-in demo account. */
   demo: boolean;
+  /** JWT token from the backend; null when running in local-only mode. */
+  authToken: string | null;
 }
 
 /** Stored shape of everything the app remembers between sessions. */

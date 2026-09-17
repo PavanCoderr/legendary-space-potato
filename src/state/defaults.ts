@@ -36,6 +36,7 @@ export const DEFAULT_SESSION: Session = {
   level: 'Beginner',
   signedInAt: null,
   demo: true,
+  authToken: null,
 };
 
 export function nowIso(): string {

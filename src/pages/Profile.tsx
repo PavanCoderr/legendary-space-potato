@@ -145,7 +145,7 @@ export function ProfilePage() {
               <button
                 className="btn-small btn-ghost"
                 onClick={() => {
-                  actions.signOut();
+                  void actions.signOut();
                   navigate('login');
                 }}
               >

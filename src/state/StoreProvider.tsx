@@ -83,9 +83,9 @@ export interface StoreActions {
   deleteProject: (id: string) => void;
   openProject: (id: string) => Project | null;
 
-  /** Session (mocked auth) */
-  signIn: (input: { email: string; name?: string; level: LearningLevel; demo?: boolean }) => void;
-  signOut: () => void;
+  /** Session — authenticates against the backend when configured */
+  signIn: (input: { email: string; password: string; name?: string; level: LearningLevel; demo?: boolean }) => Promise<boolean>;
+  signOut: () => Promise<void>;
   setLearningLevel: (level: LearningLevel) => void;
 
   /** User + settings */
@@ -94,7 +94,7 @@ export interface StoreActions {
   updateAiSettings: (patch: Partial<AppSettings['aiProvider']>) => void;
   pushToast: (text: string, tone?: 'info' | 'success' | 'error') => void;
   dismissToast: () => void;
-  resetEverything: () => void;
+  resetEverything: () => Promise<void>;
   importState: (snapshot: Partial<PersistedSnapshot>) => void;
 }
 
@@ -366,9 +366,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return project;
       },
 
-      signIn: ({ email, name, level, demo }) =>
-        dispatch({ type: 'session/sign-in', email, name, level, demo }),
-      signOut: () => dispatch({ type: 'session/sign-out' }),
+      signIn: async ({ email, password, name, level, demo }) => {
+        // Demo mode signs in locally without hitting any auth store.
+        if (demo) {
+          dispatch({ type: 'session/sign-in', email, name, level, demo: true, authToken: null });
+          return true;
+        }
+
+        try {
+          // Try login first; if the account doesn't exist, fall back to signup.
+          // In local mode this uses the in-browser bcrypt stub; in HTTP mode it hits the
+          // real backend — either way the password is genuinely verified.
+          let result;
+          try {
+            result = await api.login(email, password);
+          } catch {
+            result = await api.signup(email, password, name, level);
+          }
+
+          dispatch({
+            type: 'session/sign-in',
+            email: result.user.email,
+            name: result.user.name ?? name,
+            level: result.user.level ?? level,
+            demo: false,
+            authToken: result.token,
+          });
+
+          // Load the user's saved snapshot. In HTTP mode this is token-scoped server
+          // state; in local mode it's the (already-cleared-on-sign-out) browser snapshot.
+          const remoteState = await api.loadState();
+          if (remoteState) {
+            dispatch({ type: 'state/hydrate', persisted: remoteState });
+            // The snapshot may carry a stale user/name from the browser's debounced
+            // save; re-assert the identity returned by the auth endpoint so the freshly
+            // signed-in user is always the one reflected on screen.
+            dispatch({
+              type: 'session/sign-in',
+              email: result.user.email,
+              name: result.user.name ?? name,
+              level: result.user.level ?? level,
+              demo: false,
+              authToken: result.token,
+            });
+          }
+
+          return true;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          dispatch({
+            type: 'toast',
+            text: `Sign in failed: ${message}`,
+            tone: 'error',
+          });
+          return false;
+        }
+      },
+      signOut: async () => {
+        await api.logout();
+        // Clear any locally persisted snapshot so the next user starts fresh.
+        await api.clearState();
+        dispatch({ type: 'session/sign-out' });
+      },
       setLearningLevel: level => dispatch({ type: 'session/set-level', level }),
 
       setName: name => dispatch({ type: 'user/rename', name }),
@@ -376,8 +435,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateAiSettings: patch => dispatch({ type: 'settings/update-ai', patch }),
       pushToast: (text, tone = 'info') => dispatch({ type: 'toast', text, tone }),
       dismissToast: () => dispatch({ type: 'toast/clear' }),
-      resetEverything: () => {
-        void api.clearState();
+      resetEverything: async () => {
+        await api.clearState();
         dispatch({ type: 'progress/reset' });
         dispatch({ type: 'circuit/set', circuit: createCircuit('Untitled circuit', 2) });
         dispatch({ type: 'settings/update', patch: DEFAULT_SETTINGS });

@@ -55,7 +55,7 @@ function AuthShell({
             </span>
           </div>
           <div className="tiny dim">
-            Sessions are mocked in the browser for now — nothing is sent anywhere and no password is stored.
+            Passwords are checked against the backend when connected.
           </div>
         </div>
       </aside>
@@ -75,6 +75,7 @@ function AuthShell({
 function useAuthSubmit() {
   const { actions } = useApp();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const validate = (email: string, password: string, name?: string) => {
     if (name !== undefined && name.trim().length < 2) return 'Please enter your name.';
@@ -83,22 +84,38 @@ function useAuthSubmit() {
     return null;
   };
 
-  const submit = (
+  const submit = async (
     input: { email: string; password: string; name?: string; level: LearningLevel },
     target: RouteName,
-  ) => {
+  ): Promise<boolean> => {
     const problem = validate(input.email, input.password, input.name);
     if (problem) {
       setError(problem);
       return false;
     }
     setError(null);
-    actions.signIn({ email: input.email, name: input.name, level: input.level, demo: false });
-    navigate(target);
-    return true;
+    setLoading(true);
+    try {
+      const success = await actions.signIn({
+        email: input.email,
+        password: input.password,
+        name: input.name,
+        level: input.level,
+        demo: false,
+      });
+      if (success) {
+        navigate(target);
+      }
+      return success;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return { error, submit };
+  return { error, loading, submit };
 }
 
 const GOOGLE_NOTICE = 'google-not-connected';
@@ -108,7 +125,7 @@ export function LoginPage({ requested }: { requested?: RouteName }) {
   const [email, setEmail] = useState('alex@qubitverse.dev');
   const [password, setPassword] = useState('quantum');
   const [notice, setNotice] = useState<string | null>(null);
-  const { error, submit } = useAuthSubmit();
+  const { error, loading, submit } = useAuthSubmit();
   const target: RouteName = requested ?? 'dashboard';
 
   return (
@@ -133,7 +150,7 @@ export function LoginPage({ requested }: { requested?: RouteName }) {
           onChange={event => setEmail(event.target.value)}
         />
       </Field>
-      <Field label="Password" hint="Mocked authentication — any password of 6+ characters works.">
+      <Field label="Password" hint="At least 6 characters. Checked against your account on the backend.">
         <input
           type="password"
           value={password}
@@ -149,8 +166,9 @@ export function LoginPage({ requested }: { requested?: RouteName }) {
         className="btn-primary"
         style={{ width: '100%', justifyContent: 'center' }}
         onClick={() => submit({ email, password, level: 'Beginner' }, target)}
+        disabled={loading}
       >
-        <Lock size={15} /> Continue
+        <Lock size={15} /> {loading ? 'Signing in…' : 'Continue'}
       </button>
 
       <button
@@ -171,8 +189,8 @@ export function LoginPage({ requested }: { requested?: RouteName }) {
       <button
         className="btn btn-ghost"
         style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
-        onClick={() => {
-          actions.signIn({ email: 'alex@qubitverse.dev', name: 'Alex Rivera', level: 'Beginner', demo: true });
+        onClick={async () => {
+          await actions.signIn({ email: 'alex@qubitverse.dev', password: '', name: 'Alex Rivera', level: 'Beginner', demo: true });
           navigate(target);
         }}
       >
@@ -196,7 +214,7 @@ export function SignupPage() {
   const [email, setEmail] = useState('alex@qubitverse.dev');
   const [password, setPassword] = useState('quantum');
   const [level, setLevel] = useState<LearningLevel>('Beginner');
-  const { error, submit } = useAuthSubmit();
+  const { error, loading, submit } = useAuthSubmit();
 
   return (
     <AuthShell
@@ -222,7 +240,7 @@ export function SignupPage() {
           onChange={event => setEmail(event.target.value)}
         />
       </Field>
-      <Field label="Password" hint="At least 6 characters. Stored nowhere — this is a mocked session.">
+      <Field label="Password" hint="At least 6 characters. Checked against your account on the backend.">
         <input
           type="password"
           value={password}
@@ -257,11 +275,12 @@ export function SignupPage() {
         className="btn-primary"
         style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
         onClick={() => submit({ email, password, name, level }, 'dashboard')}
+        disabled={loading}
       >
-        Create account and start learning <ArrowRight size={15} />
+        {loading ? 'Creating account…' : 'Create account and start learning'} <ArrowRight size={15} />
       </button>
       <p className="tiny dim" style={{ marginTop: 10, marginBottom: 0 }}>
-        Your progress is stored on this device, so signing up keeps whatever you have already completed.
+        Your progress is synced to the backend when connected, so a new account starts fresh.
       </p>
     </AuthShell>
   );

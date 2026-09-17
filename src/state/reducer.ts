@@ -116,11 +116,13 @@ export function reducer(state: AppState, action: Action): AppState {
           ...state,
           user: name ? { ...state.user, name: name.slice(0, 40) } : state.user,
           session: {
+            ...state.session,
             signedIn: true,
             email: action.email.trim(),
             level: action.level,
             signedInAt: nowIso(),
             demo: action.demo ?? false,
+            authToken: action.authToken ?? null,
           },
           activity: touchActivity(state),
         },
@@ -132,7 +134,13 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'session/sign-out':
       return {
         ...state,
-        session: { ...state.session, signedIn: false, demo: false, signedInAt: null },
+        session: {
+          ...state.session,
+          signedIn: false,
+          demo: false,
+          signedInAt: null,
+          authToken: null,
+        },
         toast: { id: newId('toast'), text: 'Signed out. Your progress is still saved on this device.', tone: 'info' },
       };
 

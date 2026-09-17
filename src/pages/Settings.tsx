@@ -219,7 +219,7 @@ export function SettingsPage() {
               className="btn-small btn-bad"
               onClick={() => {
                 if (window.confirm('Reset progress, projects, settings and tutor history to the initial state?')) {
-                  actions.resetEverything();
+                  void actions.resetEverything();
                 }
               }}
             >
