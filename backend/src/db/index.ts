@@ -6,7 +6,9 @@ import fs from 'node:fs';
 // Re-export the Database type for use in data access modules
 export type { SqliteDatabase };
 
-// Use a persistent file-based database for real state persistence
+// Use a persistent file-based database for real state persistence.
+// DATABASE_URL is used as a file path for SQLite. On Railway, mount a persistent
+// volume and set DATABASE_URL to the volume path (e.g., /data/qubitverse.db).
 const DB_PATH = process.env.DATABASE_URL || path.join(process.cwd(), 'data', 'qubitverse.db');
 
 let dbInstance: SqliteDatabase | null = null;

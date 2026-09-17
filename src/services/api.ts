@@ -171,7 +171,7 @@ export function createLocalApi(): QubitVerseApi {
 
       const users = hydrateLocalUsers();
       const record = users.get(email);
-      if (!record) throw new Error('Invalid credentials');
+      if (!record) throw new Error('User not found');
 
       const ok = await bcrypt.compare(password, record.passwordHash);
       if (!ok) throw new Error('Invalid credentials');
@@ -179,8 +179,8 @@ export function createLocalApi(): QubitVerseApi {
       return { user: { id: record.id, email: record.email, name: record.name, level: record.level }, token: `local-${record.id}` };
     },
     async logout() {
-      clearLocalUsers();
-      try { localStorage.removeItem(LOCAL_USERS_KEY); } catch {}
+      // Clear the auth token from localStorage. Local users persist so they can sign in again.
+      setAuthToken(null);
     },
   };
 }

@@ -374,13 +374,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          // Try login first; if the account doesn't exist, fall back to signup.
-          // In local mode this uses the in-browser bcrypt stub; in HTTP mode it hits the
-          // real backend — either way the password is genuinely verified.
+          // Try login first; only fall back to signup when the user doesn't exist.
+          // A wrong password must NOT trigger signup — it should fail with an error.
           let result;
           try {
             result = await api.login(email, password);
-          } catch {
+          } catch (loginError) {
+            // Distinguish "user not found" (fall back to signup) from "wrong password" (reject).
+            const msg = loginError instanceof Error ? loginError.message : String(loginError);
+            const userNotFound =
+              msg.includes('not found') || msg.toLowerCase().includes('no such user');
+            if (!userNotFound) throw loginError;
             result = await api.signup(email, password, name, level);
           }
 
@@ -423,10 +427,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
+        // Dispatch first so the reducer resets all per-user state (progress, projects, etc.)
+        // before the next debounced persist fires. If clearState() runs before the dispatch,
+        // the 250ms debounced save will re-write the old (pre-clear) state back to localStorage.
+        dispatch({ type: 'session/sign-out' });
         await api.logout();
         // Clear any locally persisted snapshot so the next user starts fresh.
         await api.clearState();
-        dispatch({ type: 'session/sign-out' });
       },
       setLearningLevel: level => dispatch({ type: 'session/set-level', level }),
 

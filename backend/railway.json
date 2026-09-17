@@ -1,0 +1,21 @@
+{
+  "build": {
+    "provider": "nixpacks",
+    "buildCommand": "npm run build"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100
+  },
+  "volumes": {
+    "data": {
+      "mountPath": "/data",
+      "size": "1"
+    }
+  },
+  "variables": {
+    "DATABASE_URL": "/data/qubitverse.db",
+    "JWT_SECRET": "set-this-to-a-long-random-string"
+  }
+}

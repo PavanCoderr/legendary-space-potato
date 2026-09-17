@@ -19,7 +19,7 @@ import { circuitToCode } from '../quantum/code';
 import { assessEntanglement } from '../services/analysis';
 import { applySnapshot } from './persistence';
 import { achievementStatsOf, lessonProgressOf } from './selectors';
-import { blankProgress, dayKey, nowIso } from './defaults';
+import { blankProgress, dayKey, initialProgress, nowIso } from './defaults';
 import type { Action, AppState } from './types';
 
 const MAX_TUTOR_MESSAGES = 40;
@@ -141,6 +141,22 @@ export function reducer(state: AppState, action: Action): AppState {
           signedInAt: null,
           authToken: null,
         },
+        progress: initialProgress(),
+        quizAttempts: [],
+        challengeAttempts: [],
+        projects: [],
+        tutorMessages: [],
+        achievements: [],
+        activity: {
+          simulations: 0,
+          lessonsCompleted: 0,
+          quizzesTaken: 0,
+          challengesPassed: 0,
+          activeDays: [],
+          lastActiveAt: null,
+          totalShots: 0,
+        },
+        entanglementsBuilt: false,
         toast: { id: newId('toast'), text: 'Signed out. Your progress is still saved on this device.', tone: 'info' },
       };
 
