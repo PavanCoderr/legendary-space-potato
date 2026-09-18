@@ -27,8 +27,8 @@ import bcrypt from 'bcryptjs';
  * | `fetchLessons`  | `GET  /api/lessons`    | —               | `Lesson[]` |
  * | `saveProgress`  | `POST /api/progress`   | snapshot        | — |
  * | `submitQuiz`    | `POST /api/quiz/submit`| `QuizAttempt`   | `{ recorded, explanation? }` |
- * | `askTutor`      | `POST /api/ai/explain` | `{ prompt, action, context }` | `TutorReply` |
- * | `askHint`       | `POST /api/ai/hint`    | `{ prompt, action, context }` | `TutorReply` |
+ * | `askTutor`      | `POST /api/ai/explain` | `{ prompt, action, context, apiKey?, baseUrl?, model?, temperature? }` | `TutorReply` |
+ * | `askHint`       | `POST /api/ai/hint`    | `{ prompt, action, context, apiKey?, baseUrl?, model?, temperature? }` | `TutorReply` |
  * | `signup`        | `POST /api/signup`     | `{ email, password, name, level }` | `{ user, token }` |
  * | `login`         | `POST /api/login`      | `{ email, password }` | `{ user, token }` |
  * | `logout`        | `POST /api/logout`     | — (Bearer token) | `{ success }` |
@@ -280,17 +280,25 @@ export function createHttpApi(baseUrl: string): QubitVerseApi {
       }
     },
     async askTutor(request, provider) {
-      if (provider.mode === 'openai-compatible') return remoteTutorReply(request, provider);
+      // OpenAI-compatible mode is always proxied through the backend so the user's
+      // API key is only ever sent to our server, never straight from the browser.
+      const body = provider.mode === 'openai-compatible'
+        ? { ...request, apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, temperature: provider.temperature }
+        : request;
       try {
-        return await post<TutorReply>('/api/ai/explain', request, '/api/ai/explain');
+        return await post<TutorReply>('/api/ai/explain', body, '/api/ai/explain');
       } catch (error) {
         console.warn('[qubitverse] remote tutor unavailable, using the built-in tutor', error);
         return local.askTutor(request, provider);
       }
     },
     async askHint(request, provider) {
+      const hintRequest: TutorRequest = { ...request, action: request.action ?? 'hint' };
+      const body = provider.mode === 'openai-compatible'
+        ? { ...hintRequest, apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, temperature: provider.temperature }
+        : hintRequest;
       try {
-        return await post<TutorReply>('/api/ai/hint', request, '/api/ai/hint');
+        return await post<TutorReply>('/api/ai/hint', body, '/api/ai/hint');
       } catch (error) {
         console.warn('[qubitverse] remote hint unavailable, using the built-in tutor', error);
         return local.askHint(request, provider);

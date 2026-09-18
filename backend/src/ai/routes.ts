@@ -2,12 +2,28 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
-import { resolveProvider, type ChatMessage } from './provider';
+import {
+  resolveProvider,
+  createProvider,
+  type ChatMessage,
+  type AiProvider,
+} from './provider';
 
 export interface TutorContext {
   lessonId?: string;
   circuitState?: any;
   recentErrors?: string[];
+}
+
+/**
+ * Per-request provider override. The frontend may pass a user-supplied key;
+ * it is used for this single request only and is never persisted.
+ */
+export interface ProviderOverride {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+  provider?: 'openai-compatible' | 'anthropic';
 }
 
 export interface TutorResponse {
@@ -48,16 +64,44 @@ function buildSystemPrompt(context?: TutorContext): string {
 }
 
 /**
+ * Build a one-shot provider from a per-request override (user-supplied key).
+ * The key is used for this request only and is never stored.
+ */
+function buildOverrideProvider(override: ProviderOverride): AiProvider {
+  const model = override.model ?? 'gpt-4o-mini';
+  if (override.provider === 'anthropic') {
+    return createProvider({
+      type: 'anthropic',
+      apiKey: override.apiKey,
+      model: model || 'claude-3-haiku-20240307',
+    });
+  }
+  // Default: OpenAI-compatible (also used for OpenRouter, Ollama, etc.)
+  return createProvider({
+    type: 'openai',
+    apiKey: override.apiKey,
+    model,
+    baseUrl: override.baseUrl,
+  });
+}
+
+/**
  * Generate a response from the quantum computing tutor using the configured AI provider.
  *
- * The provider is resolved from environment variables at startup — no API key is
- * ever exposed to the frontend. If no provider is configured, a stub answer is returned.
+ * By default the provider is resolved from environment variables at startup —
+ * no API key is ever exposed to the frontend. If a `providerOverride` with a
+ * user-supplied key is passed, a fresh provider is created for this request
+ * only and then discarded. If no key is configured, a stub answer is returned.
  */
 async function generateTutorResponse(
   message: string,
   context?: TutorContext,
+  providerOverride?: ProviderOverride,
 ): Promise<TutorResponse> {
-  const provider = getProvider();
+  const provider =
+    providerOverride?.apiKey
+      ? buildOverrideProvider(providerOverride)
+      : getProvider();
   const systemPrompt = buildSystemPrompt(context);
 
   const messages: ChatMessage[] = [
@@ -130,7 +174,21 @@ export function registerAiRoutes(): Router {
       return;
     }
 
-    const { message, context }: { message: string; context?: TutorContext } = req.body;
+    const {
+      message,
+      context,
+      apiKey,
+      baseUrl,
+      model,
+      provider,
+    }: {
+      message: string;
+      context?: TutorContext;
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+      provider?: 'openai-compatible' | 'anthropic';
+    } = req.body;
     const db = await getDb();
 
     if (!message) {
@@ -153,8 +211,13 @@ export function registerAiRoutes(): Router {
         now,
       );
 
-      // Get AI response
-      const response = await generateTutorResponse(message, context);
+      // Get AI response (a user-supplied key, if any, is used for this
+      // request only and never stored)
+      const response = await generateTutorResponse(
+        message,
+        context,
+        { apiKey, baseUrl, model, provider },
+      );
 
       // Store assistant response
       await db.run(
@@ -202,13 +265,33 @@ export function registerAiRoutes(): Router {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
-    const { prompt, action, context }: { prompt: string; action?: string; context?: TutorContext } = req.body;
+    const {
+      prompt,
+      action,
+      context,
+      apiKey,
+      baseUrl,
+      model,
+      provider,
+    }: {
+      prompt: string;
+      action?: string;
+      context?: TutorContext;
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+      provider?: 'openai-compatible' | 'anthropic';
+    } = req.body;
     if (!prompt) {
       res.status(400).json({ error: 'Message is required' });
       return;
     }
     try {
-      const response = await generateTutorResponse(prompt, context ?? {});
+      const response = await generateTutorResponse(
+        prompt,
+        context ?? {},
+        { apiKey, baseUrl, model, provider },
+      );
       res.json({
         response: response.text,
         action: response.action,
@@ -230,13 +313,31 @@ export function registerAiRoutes(): Router {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
-    const { prompt, context }: { prompt: string; context?: TutorContext } = req.body;
+    const {
+      prompt,
+      context,
+      apiKey,
+      baseUrl,
+      model,
+      provider,
+    }: {
+      prompt: string;
+      context?: TutorContext;
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+      provider?: 'openai-compatible' | 'anthropic';
+    } = req.body;
     if (!prompt) {
       res.status(400).json({ error: 'Message is required' });
       return;
     }
     try {
-      const response = await generateTutorResponse(prompt, context ?? {});
+      const response = await generateTutorResponse(
+        prompt,
+        context ?? {},
+        { apiKey, baseUrl, model, provider },
+      );
       res.json({
         response: response.text,
         followUps: response.followUps,

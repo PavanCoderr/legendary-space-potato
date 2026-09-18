@@ -152,7 +152,7 @@ export function SettingsPage() {
               onChange={event => actions.updateAiSettings({ model: event.target.value })}
             />
           </Field>
-          <Field label="API key" hint="Stored only in this browser (localStorage). Never sent anywhere except your provider.">
+          <Field label="API key" hint="Sent to the backend with each request so it can call your provider. Not stored server-side.">
             <input
               type="password"
               value={provider.apiKey}
