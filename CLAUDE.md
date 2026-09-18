@@ -5,6 +5,10 @@
 Implement the real backend for the existing QubitVerse quantum learning platform and connect it to the existing frontend.
 
 ## Critical Rule
+echo "## Subagent Rules
+- Maximum 2 subagents can run in parallel at any time
+- Never use Claude Sonnet for subagents, use cheap models only
+- Always ask for confirmation before running deploy commands" >> CLAUDE.md
 
 Preserve the existing frontend.
 

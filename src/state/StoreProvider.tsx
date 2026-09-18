@@ -423,7 +423,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             text: `Sign in failed: ${message}`,
             tone: 'error',
           });
-          return false;
+          // Re-throw so callers (e.g. the login form) can surface an inline error.
+          throw new Error(message);
         }
       },
       signOut: async () => {

@@ -16,6 +16,6 @@
   },
   "variables": {
     "DATABASE_URL": "/data/qubitverse.db",
-    "JWT_SECRET": "set-this-to-a-long-random-string"
+    "CORS_ORIGIN": "https://qubitverse-green.vercel.app"
   }
 }

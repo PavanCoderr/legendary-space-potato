@@ -108,7 +108,18 @@ function useAuthSubmit() {
       }
       return success;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed');
+      // surfaced by api.login / signIn (e.g. "Invalid credentials",
+      // "User not found", "Email and password are required"). Map the common
+      // auth failures to a user-friendly inline message so the form gives
+      // clear feedback instead of silently showing only a toast.
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('Invalid credentials') || msg.includes('User not found')) {
+        setError('Incorrect email or password');
+      } else if (msg.includes('Email and password are required') || msg.includes('needs at least 6 characters')) {
+        setError(msg);
+      } else {
+        setError(msg || 'Sign in failed');
+      }
       return false;
     } finally {
       setLoading(false);

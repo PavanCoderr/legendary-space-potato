@@ -88,6 +88,10 @@ describe('Frontend Bug Reproduction Tests', () => {
       // The wrong password should have been rejected
       // The profile menu should NOT be visible (user is not signed in)
       expect(profileMenu).toBeNull();
+
+      // The login form should now show a clear inline error message
+      const inlineError = await screen.findByText(/Incorrect email or password/i);
+      expect(inlineError).toBeTruthy();
     });
   });
 
