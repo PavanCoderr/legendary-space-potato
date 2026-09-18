@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"No linter configured\" && exit 0",
     "test": "vitest run",
