@@ -44,6 +44,18 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'qubitverse-backend' });
 });
 
+// Debug endpoint to inspect CORS configuration
+app.get('/api/debug/cors', (_req, res) => {
+  res.json({
+    CORS_ORIGIN: process.env.CORS_ORIGIN || null,
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    PORT: process.env.PORT || 'not set',
+    allEnvKeys: Object.keys(process.env).filter(k =>
+      k.includes('CORS') || k.includes('ORIGIN') || k.includes('VERCEL')
+    ).sort(),
+  });
+});
+
 // 404 handler
 app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({ error: 'Not found' });
