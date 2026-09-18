@@ -79,7 +79,16 @@
 - **Quizzes** (15 tests): quiz fetch, answer submission, results, frontend contract `/api/quiz/submit`, auth checks ✅
 - **Quantum Simulator** (17 tests): all gates (H,X,Y,Z,S,T,CNOT,M), Bell state, API validation ✅
 - **User State** (8 tests): GET/PUT/DELETE `/state` endpoints, auth enforcement ✅
-- Total: **85 tests passing**, 0 failures ✅
+- Total: **88 tests passing**, 0 failures ✅ (was 85; added 3 new auth tests)
+
+## Signup Error Message Fix ✅
+
+**Root cause:** The backend login endpoint returned `"Invalid credentials"` for both "user not found" and "wrong password". The frontend's `signIn()` logic tried login first and fell back to signup only when the error contained "not found" — a check that never matched "Invalid credentials", so signup was never attempted. Every new-email signup attempt surfaced the login error "Incorrect email or password".
+
+**Fixes applied:**
+1. **Backend** (`backend/src/auth/routes.ts`): Login now returns `"User not found"` for non-existent users and `"Invalid credentials"` only for wrong passwords. Signup returns `"Email already registered"` (was `"User already exists"`) for duplicates.
+2. **Frontend** (`src/pages/Auth.tsx`): `useAuthSubmit` now takes a `mode: 'login' | 'signup'` parameter. Signup mode maps "Email already registered" → "This email is already registered. Try signing in instead." and never shows "Incorrect email or password" (a login-only message). Login mode retains the original error mapping.
+3. **Tests** (`backend/test/auth.test.ts`): Updated duplicate-signup assertion for new message, added test distinguishing "User not found" vs "Invalid credentials" login errors.
 
 ## Frontend API Connection ✅
 

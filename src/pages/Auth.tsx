@@ -72,7 +72,9 @@ function AuthShell({
   );
 }
 
-function useAuthSubmit() {
+type AuthMode = 'login' | 'signup';
+
+function useAuthSubmit(mode: AuthMode) {
   const { actions } = useApp();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -108,17 +110,28 @@ function useAuthSubmit() {
       }
       return success;
     } catch (err) {
-      // surfaced by api.login / signIn (e.g. "Invalid credentials",
-      // "User not found", "Email and password are required"). Map the common
-      // auth failures to a user-friendly inline message so the form gives
-      // clear feedback instead of silently showing only a toast.
+      // Map backend errors to user-friendly messages. Signup and login
+      // have distinct error vocabularies so users get accurate feedback.
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('Invalid credentials') || msg.includes('User not found')) {
-        setError('Incorrect email or password');
-      } else if (msg.includes('Email and password are required') || msg.includes('needs at least 6 characters')) {
-        setError(msg);
+      if (mode === 'signup') {
+        if (msg.includes('Email already registered') || msg.includes('User already exists')) {
+          setError('This email is already registered. Try signing in instead.');
+        } else if (msg.includes('Invalid credentials') || msg.includes('User not found')) {
+          // Should not happen during normal signup flow, but if the backend
+          // returns these on signup, surface a generic message.
+          setError(msg || 'Could not create your account');
+        } else {
+          setError(msg || 'Could not create your account');
+        }
       } else {
-        setError(msg || 'Sign in failed');
+        // Login mode
+        if (msg.includes('Invalid credentials') || msg.includes('User not found')) {
+          setError('Incorrect email or password');
+        } else if (msg.includes('Email and password are required') || msg.includes('needs at least 6 characters')) {
+          setError(msg);
+        } else {
+          setError(msg || 'Sign in failed');
+        }
       }
       return false;
     } finally {
@@ -136,7 +149,7 @@ export function LoginPage({ requested }: { requested?: RouteName }) {
   const [email, setEmail] = useState('alex@qubitverse.dev');
   const [password, setPassword] = useState('quantum');
   const [notice, setNotice] = useState<string | null>(null);
-  const { error, loading, submit } = useAuthSubmit();
+  const { error, loading, submit } = useAuthSubmit('login');
   const target: RouteName = requested ?? 'dashboard';
 
   return (
@@ -225,7 +238,7 @@ export function SignupPage() {
   const [email, setEmail] = useState('alex@qubitverse.dev');
   const [password, setPassword] = useState('quantum');
   const [level, setLevel] = useState<LearningLevel>('Beginner');
-  const { error, loading, submit } = useAuthSubmit();
+  const { error, loading, submit } = useAuthSubmit('signup');
 
   return (
     <AuthShell

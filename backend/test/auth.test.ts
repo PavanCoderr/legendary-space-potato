@@ -63,7 +63,25 @@ describe('Authentication', () => {
       password: testPassword,
     });
     expect(res.status).toBe(409);
-    expect(res.body.error).toContain('User already exists');
+    expect(res.body.error).toContain('Email already registered');
+  });
+
+  it('should distinguish between user not found and wrong password on login', async () => {
+    // Login with an email that does not exist → "User not found"
+    const notFoundRes = await request(app).post('/api/login').send({
+      email: 'does-not-exist@example.com',
+      password: testPassword,
+    });
+    expect(notFoundRes.status).toBe(401);
+    expect(notFoundRes.body.error).toContain('User not found');
+
+    // Login with an existing user but wrong password → "Invalid credentials"
+    const wrongPasswordRes = await request(app).post('/api/login').send({
+      email: testEmail,
+      password: 'wrong-password',
+    });
+    expect(wrongPasswordRes.status).toBe(401);
+    expect(wrongPasswordRes.body.error).toContain('Invalid credentials');
   });
 
   it('should reject login with wrong password', async () => {
@@ -81,7 +99,7 @@ describe('Authentication', () => {
       password: testPassword,
     });
     expect(res.status).toBe(401);
-    expect(res.body.error).toContain('Invalid credentials');
+    expect(res.body.error).toContain('User not found');
   });
 
   it('should successfully login', async () => {

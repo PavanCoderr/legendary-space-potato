@@ -56,6 +56,15 @@ app.get('/api/debug/cors', (_req, res) => {
   });
 });
 
+// Debug endpoint to inspect JWT configuration
+app.get('/api/debug/jwt', (_req, res) => {
+  res.json({
+    JWT_SECRET_SET: !!process.env.JWT_SECRET,
+    JWT_SECRET_LENGTH: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+  });
+});
+
 // 404 handler
 app.use((_req: express.Request, res: express.Response) => {
   res.status(404).json({ error: 'Not found' });

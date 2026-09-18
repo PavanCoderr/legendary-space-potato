@@ -26,7 +26,7 @@ export function registerAuthRoutes(router: Router): void {
     // Check if user already exists
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      res.status(409).json({ error: 'User already exists' });
+      res.status(409).json({ error: 'Email already registered' });
       return;
     }
 
@@ -65,7 +65,7 @@ export function registerAuthRoutes(router: Router): void {
     // Find user
     const user = await findUserByEmail(email);
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'User not found' });
       return;
     }
 
