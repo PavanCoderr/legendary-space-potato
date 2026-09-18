@@ -5,8 +5,9 @@ package-lock.json
 # Build output
 dist/
 
-# Database
+# Database (root-level data/ dir for runtime DB files)
 data/
+!src/data/
 *.db
 *.sqlite
 *.sqlite3
