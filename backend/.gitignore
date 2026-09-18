@@ -5,6 +5,10 @@ package-lock.json
 # Build output
 dist/
 
+# Compiled test output (vitest sometimes emits .js files alongside .ts)
+test/*.js
+test/*.js.map
+
 # Database (root-level data/ dir for runtime DB files)
 data/
 !src/data/
