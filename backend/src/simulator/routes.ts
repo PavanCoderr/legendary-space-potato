@@ -4,12 +4,12 @@ import { getUser } from '../middleware/auth';
 import {
   deserializeCircuit,
   serializeCircuit,
-} from '../../../src/quantum/circuit';
+} from '../quantum/circuit';
 import {
   simulate,
   createSeededRandom,
-} from '../../../src/quantum/simulator';
-import type { SimulationResult } from '../../../src/quantum/simulator';
+} from '../quantum/simulator';
+import type { SimulationResult } from '../quantum/simulator';
 
 /**
  * Register simulator routes.

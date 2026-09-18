@@ -1,8 +1,8 @@
 import { getDb } from '../db';
-import { LESSONS } from '../../../src/data/lessons';
-import { QUIZZES } from '../../../src/data/quizzes';
-import { CHALLENGES } from '../../../src/data/challenges';
-import { TOPICS } from '../../../src/data/topics';
+import { LESSONS } from '../data/lessons';
+import { QUIZZES } from '../data/quizzes';
+import { CHALLENGES } from '../data/challenges';
+import { TOPICS } from '../data/topics';
 
 /**
  * Seed educational content from the existing frontend data modules.
@@ -116,7 +116,7 @@ export async function seedDatabase(): Promise<void> {
         quizIds: lesson.quizIds,
         challengeId: lesson.challengeId,
         nextLessonId: lesson.nextLessonId,
-        icon: lesson.icon?.displayName ?? lesson.icon?.name ?? lesson.icon ?? null,
+        icon: typeof lesson.icon === 'object' && lesson.icon ? lesson.icon.displayName ?? lesson.icon.name : lesson.icon ?? null,
       }),
       lesson.id,
     );
@@ -211,7 +211,7 @@ export async function seedDatabase(): Promise<void> {
     );
 
     // Objectives
-    challenge.objectives.forEach((obj, i) => {
+    challenge.objectives.forEach((obj: string, i: number) => {
       db.run(
         `INSERT OR REPLACE INTO challenge_objectives (challenge_id, \`index\`, text) VALUES (?, ?, ?)`,
         challenge.id,
@@ -221,7 +221,7 @@ export async function seedDatabase(): Promise<void> {
     });
 
     // Hints
-    challenge.hints.forEach((hint, i) => {
+    challenge.hints.forEach((hint: string, i: number) => {
       db.run(
         `INSERT OR REPLACE INTO challenge_hints (challenge_id, \`index\`, text) VALUES (?, ?, ?)`,
         challenge.id,

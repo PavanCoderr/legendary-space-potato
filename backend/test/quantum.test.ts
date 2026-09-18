@@ -3,8 +3,8 @@ import request from 'supertest';
 import { app } from '../src/server';
 import { initTestDb, cleanupTables } from './helpers';
 import { signToken } from '../src/utils/jwt';
-import { createCircuit, type QuantumCircuit } from '../../src/quantum/circuit';
-import { simulate } from '../../src/quantum/simulator';
+import { createCircuit, type QuantumCircuit } from '../src/quantum/circuit';
+import { simulate } from '../src/quantum/simulator';
 
 describe('Quantum Simulator', () => {
   let authToken: string;
