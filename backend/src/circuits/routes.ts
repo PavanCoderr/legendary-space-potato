@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
+import { deserializeCircuit } from '../quantum/circuit';
+import { simulate, createSeededRandom } from '../quantum/simulator';
 
 export interface Circuit {
   id: string;
@@ -62,11 +64,14 @@ export function registerCircuitRoutes(): Router {
         user.id
       );
 
-      if (!circuit) {
+      let circuitData: string | null = null;
+
+      if (circuit) {
+        circuitData = circuit.circuit;
+      } else {
         // Fallback to lesson-based circuits if not a saved project
         const lessonCircuit = await db.get(
-          'SELECT circuit FROM lesson_circuits WHERE lesson_id = ? AND id = ?',
-          id,
+          'SELECT circuit FROM lesson_circuits WHERE id = ?',
           id
         );
 
@@ -74,18 +79,75 @@ export function registerCircuitRoutes(): Router {
           res.status(404).json({ error: 'Circuit not found' });
           return;
         }
+        circuitData = lessonCircuit.circuit;
       }
 
-      // TODO: Integrate with actual quantum simulator (qiskit-stubs or simulator module)
-      // For now, return a placeholder result
-      const result: CircuitSimulationResult = {
-        success: true,
-        final_state: ['|00⟩', '|01⟩', '|10⟩', '|11⟩'],
-        measurements: { '00': 256, '01': 256, '10': 256, '11': 256 },
-        shots_used: shots,
+      if (!circuitData) {
+        res.status(404).json({ error: 'Circuit not found' });
+        return;
+      }
+
+      // Deserialize and validate the circuit
+      let parsedCircuit;
+      try {
+        const circuitJson = JSON.parse(circuitData);
+        const { circuit: qc, issues } = deserializeCircuit(circuitJson, `Circuit ${id}`);
+
+        if (issues.length > 0) {
+          res.status(400).json({
+            success: false,
+            error: `Invalid circuit: ${issues.join(' ')}`,
+          });
+          return;
+        }
+
+        parsedCircuit = qc;
+      } catch (parseError) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid circuit JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+        });
+        return;
+      }
+
+      // Build simulation options
+      const options: { shots: number; random?: () => number } = {
+        shots: Math.max(1, Math.floor(shots)),
       };
 
-      res.json(result);
+      // If a seed is provided, use a seeded PRNG for reproducible results
+      if (typeof initial_state === 'number' && !isNaN(initial_state)) {
+        options.random = createSeededRandom(initial_state);
+      }
+
+      // Run the real simulation
+      try {
+        const simResult = simulate(parsedCircuit, options);
+
+        // Format result to match the CircuitSimulationResult contract
+        const measurementBuckets = simResult.measurement.buckets;
+        const measurements: Record<string, number> = {};
+        for (const bucket of measurementBuckets) {
+          measurements[bucket.label.replace(/[|⟩]/g, '')] = bucket.count;
+        }
+
+        const result: CircuitSimulationResult = {
+          success: true,
+          final_state: simResult.amplitudes
+            .filter(a => a.probability > 0)
+            .map(a => a.label),
+          measurements,
+          shots_used: simResult.shots,
+        };
+
+        res.json(result);
+      } catch (simError) {
+        const message = simError instanceof Error ? simError.message : 'Simulation failed';
+        res.status(400).json({
+          success: false,
+          error: message,
+        });
+      }
     } catch (error) {
       console.error('Circuit simulation error:', error);
       res.status(500).json({

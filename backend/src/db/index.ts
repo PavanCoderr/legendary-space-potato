@@ -25,7 +25,37 @@ export async function getDb(): Promise<SqliteDatabase> {
     filename: DB_PATH,
     driver: Database.Database,
   });
+  // Enable foreign key enforcement — SQLite does not do this by default.
+  await dbInstance.exec('PRAGMA foreign_keys = ON');
   return dbInstance;
+}
+
+/**
+ * Minimal migrations for existing databases.
+ *
+ * SQLite's CREATE TABLE IF NOT EXISTS won't add new columns to an existing table,
+ * so we inspect the schema and add columns that are missing. This is a one-shot
+ * idempotent check — running it on a fresh DB is a no-op.
+ */
+async function migrateDatabase(db: SqliteDatabase): Promise<void> {
+  // Add xp and streak columns to users table if they don't exist
+  const userCols = await db.all('PRAGMA table_info(users)');
+  const userColNames = userCols.map((c: any) => c.name);
+
+  if (!userColNames.includes('xp')) {
+    await db.exec('ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0');
+    console.log('[db] Migration: added xp column to users');
+  }
+  if (!userColNames.includes('streak')) {
+    await db.exec('ALTER TABLE users ADD COLUMN streak INTEGER DEFAULT 0');
+    console.log('[db] Migration: added streak column to users');
+  }
+
+  // The xp_ledger and user_achievements tables are created by CREATE TABLE IF NOT EXISTS
+  // in initializeDatabase, which runs after this migration. So just make sure they exist.
+  if (!userColNames.includes('xp')) {
+    // Columns were just added, the tables below still need creating
+  }
 }
 
 /** For tests: close and reset the singleton instance so it can be reopened fresh. */
@@ -42,6 +72,9 @@ export async function resetDb(): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   const db = await getDb();
 
+  // Run any schema migrations needed for existing databases
+  await migrateDatabase(db);
+
   // Users table — stores credentials hash and profile
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -50,6 +83,8 @@ export async function initializeDatabase(): Promise<void> {
       password_hash TEXT NOT NULL,
       name TEXT,
       level TEXT DEFAULT 'Beginner',
+      xp INTEGER DEFAULT 0,
+      streak INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now', 'utc')),
       updated_at TEXT DEFAULT (datetime('now', 'utc'))
     )
@@ -152,6 +187,32 @@ export async function initializeDatabase(): Promise<void> {
       last_active_at TEXT,
       total_shots INTEGER DEFAULT 0,
       updated_at TEXT DEFAULT (datetime('now', 'utc')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // XP ledger — append-only record of every XP award
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS xp_ledger (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      source_id TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'utc')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // User achievements — tracks which achievements a user has unlocked
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_achievements (
+      user_id TEXT NOT NULL,
+      achievement_id TEXT NOT NULL,
+      unlocked_at TEXT NOT NULL,
+      xp_bonus INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, achievement_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);

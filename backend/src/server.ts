@@ -44,26 +44,29 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'qubitverse-backend' });
 });
 
-// Debug endpoint to inspect CORS configuration
-app.get('/api/debug/cors', (_req, res) => {
-  res.json({
-    CORS_ORIGIN: process.env.CORS_ORIGIN || null,
-    NODE_ENV: process.env.NODE_ENV || 'not set',
-    PORT: process.env.PORT || 'not set',
-    allEnvKeys: Object.keys(process.env).filter(k =>
-      k.includes('CORS') || k.includes('ORIGIN') || k.includes('VERCEL')
-    ).sort(),
+// Debug endpoints — gated behind non-production to avoid leaking config
+if (process.env.NODE_ENV !== 'production') {
+  // Debug endpoint to inspect CORS configuration
+  app.get('/api/debug/cors', (_req, res) => {
+    res.json({
+      CORS_ORIGIN: process.env.CORS_ORIGIN || null,
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      PORT: process.env.PORT || 'not set',
+      allEnvKeys: Object.keys(process.env).filter(k =>
+        k.includes('CORS') || k.includes('ORIGIN') || k.includes('VERCEL')
+      ).sort(),
+    });
   });
-});
 
-// Debug endpoint to inspect JWT configuration
-app.get('/api/debug/jwt', (_req, res) => {
-  res.json({
-    JWT_SECRET_SET: !!process.env.JWT_SECRET,
-    JWT_SECRET_LENGTH: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
-    NODE_ENV: process.env.NODE_ENV || 'not set',
+  // Debug endpoint to inspect JWT configuration
+  app.get('/api/debug/jwt', (_req, res) => {
+    res.json({
+      JWT_SECRET_SET: !!process.env.JWT_SECRET,
+      JWT_SECRET_LENGTH: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+    });
   });
-});
+}
 
 // 404 handler
 app.use((_req: express.Request, res: express.Response) => {

@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
+import { awardXp } from '../rewards';
+import { LESSONS } from '../data/lessons';
 
 export interface Lesson {
   id: string;
@@ -189,6 +191,21 @@ export function registerLessonRoutes(): Router {
       user.id,
       id
     );
+
+    // If the lesson just transitioned to 'completed', award XP
+    if (updated?.status === 'completed' && existing?.status !== 'completed') {
+      const lesson = LESSONS.find(l => l.id === id);
+      if (lesson) {
+        const result = await awardXp(user.id, {
+          amount: lesson.xp,
+          reason: `Lesson complete: ${lesson.title}`,
+          sourceType: 'lesson_complete',
+          sourceId: id,
+        });
+        res.json({ progress: updated, xpAwarded: lesson.xp, ...result });
+        return;
+      }
+    }
 
     res.json({ progress: updated });
   });

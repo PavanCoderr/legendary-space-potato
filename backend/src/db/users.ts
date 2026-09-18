@@ -7,6 +7,8 @@ export interface User {
   password_hash: string;
   name: string | null;
   level: string;
+  xp: number;
+  streak: number;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +53,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   const now = new Date().toISOString();
 
   await db.run(
-    'INSERT INTO users (id, email, password_hash, name, level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO users (id, email, password_hash, name, level, xp, streak, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)',
     id,
     input.email,
     input.password_hash,

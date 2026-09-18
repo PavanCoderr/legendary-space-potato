@@ -4,3 +4,9 @@ coverage/
 *.local
 .DS_Store
 .vite/
+.aider*
+*.db
+data/
+.env
+.env.*
+!.env.example

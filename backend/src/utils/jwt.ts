@@ -12,9 +12,12 @@ const TOKEN_EXPIRY = '24h';
 export interface JwtPayload {
   userId: string;
   email: string;
+  jti?: string; // session id for revocation
 }
 
 export function signToken(payload: JwtPayload): string {
+  // jsonwebtoken: if you pass jwtid option AND payload has jti, it errors.
+  // So we pass jti via the payload and let jsonwebtoken set the jti header field.
   return jwt.sign(payload, JWT_SECRET_FINAL, { expiresIn: TOKEN_EXPIRY });
 }
 

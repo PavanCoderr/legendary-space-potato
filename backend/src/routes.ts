@@ -6,6 +6,9 @@ import { registerQuizRoutes } from './quizzes/routes';
 import { registerStateRoutes } from './users/routes';
 import { registerAiRoutes } from './ai/routes';
 import { registerSimulateRoutes } from './simulator/routes';
+import { registerGlossaryRoutes } from './glossary/routes';
+import { registerChallengeRoutes } from './challenges/routes';
+import { registerAchievementRoutes } from './achievements/routes';
 import { authenticate } from './middleware/auth';
 
 export function registerRoutes(app: express.Express): void {
@@ -13,6 +16,11 @@ export function registerRoutes(app: express.Express): void {
 
   // Auth routes (no authentication required)
   registerAuthRoutes(api);
+
+  // Public content routes (no authentication required — mirrors frontend data)
+  api.use('/glossary', registerGlossaryRoutes());
+  api.use('/challenges', registerChallengeRoutes());
+  api.use('/achievements', registerAchievementRoutes());
 
   // Protected API routes — all require a valid session
   api.use('/lessons', authenticate, registerLessonRoutes());

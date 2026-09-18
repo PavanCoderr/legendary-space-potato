@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
-import { getUserById } from '../db/users';
+import { getDb } from '../db';
 
 /**
  * Middleware that enforces authentication.
@@ -8,8 +8,9 @@ import { getUserById } from '../db/users';
  * Uses JWT tokens issued by the signup/login endpoints.
  * The token is sent as `Authorization: Bearer <token>`.
  * Sets `req.user` on success, or leaves it null.
+ * If the token has a jti (session id), checks that the session is still valid.
  */
-export function authenticate(req: Request, _res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     next();
@@ -21,6 +22,30 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   if (!payload) {
     next();
     return;
+  }
+
+  // If the token carries a session id, verify the session is still active
+  if (payload.jti) {
+    try {
+      const db = await getDb();
+      const session = await db.get(
+        'SELECT user_id, expires_at FROM sessions WHERE id = ?',
+        payload.jti,
+      );
+      if (!session) {
+        // Session was revoked (e.g. via logout) — reject
+        next();
+        return;
+      }
+      // Check expiry
+      if (session.expires_at && new Date(session.expires_at).getTime() <= Date.now()) {
+        // Session expired — reject
+        next();
+        return;
+      }
+    } catch {
+      // If session check fails, fall back to token-only auth
+    }
   }
 
   // Attach user to request via a type-safe approach

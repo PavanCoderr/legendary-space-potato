@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
+import { awardXp } from '../rewards';
+import { QUIZZES } from '../data/quizzes';
 
 export interface Quiz {
   id: string;
@@ -149,10 +151,27 @@ export function registerQuizRoutes(): Router {
         }
       }
 
-      res.json({
+      const response: { recorded: boolean; explanation?: string; xpAwarded?: number } = {
         recorded: true,
         explanation: isCorrect ? question.explanation : undefined,
-      });
+      };
+
+      // Award XP if this was a correct answer
+      if (isCorrect) {
+        const quiz = QUIZZES.find(q => q.id === quizId);
+        if (quiz && quiz.xp > 0) {
+          const xpResult = await awardXp(user.id, {
+            amount: quiz.xp,
+            reason: `Quiz correct: ${quiz.question.substring(0, 80)}...`,
+            sourceType: 'quiz_correct',
+            sourceId: quizId,
+          });
+          response.xpAwarded = quiz.xp;
+          response.newXp = xpResult.xp;
+        }
+      }
+
+      res.json(response);
     } catch (error) {
       console.error('Quiz submit error:', error);
       res.status(500).json({ error: 'Failed to record quiz attempt' });
@@ -232,11 +251,27 @@ export function registerQuizRoutes(): Router {
       }
     }
 
-    res.json({
+    const response: { correct: boolean; correct_index: number; explanation?: string; xpAwarded?: number } = {
       correct: isCorrect,
       correct_index: question.correct_index,
-      explanation: question.explanation,
-    });
+      explanation: question.explanation ?? undefined,
+    };
+
+    // Award XP if this was a correct answer
+    if (isCorrect) {
+      const quiz = QUIZZES.find(q => q.id === quizId);
+      if (quiz && quiz.xp > 0) {
+        await awardXp(user.id, {
+          amount: quiz.xp,
+          reason: `Quiz correct: ${quiz.question.substring(0, 80)}...`,
+          sourceType: 'quiz_correct',
+          sourceId: quizId,
+        });
+        response.xpAwarded = quiz.xp;
+      }
+    }
+
+    res.json(response);
   });
 
   // Get quiz results for a user

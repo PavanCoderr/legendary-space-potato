@@ -2,14 +2,15 @@ import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { getDb } from '../db';
 import { findUserByEmail, createUser } from '../db/users';
-import { signToken } from '../utils/jwt';
+import { signToken, verifyToken, JwtPayload } from '../utils/jwt';
 import { authenticate, requireAuth, getUser } from '../middleware/auth';
+import { v4 as uuidv4 } from 'uuid';
 
 const bcryptRounds = 10;
 
 export function registerAuthRoutes(router: Router): void {
-  router.post('/signup', async (_req: Request, res: Response) => {
-    const { email, password, name } = _req.body;
+  router.post('/signup', async (req: Request, res: Response) => {
+    const { email, password, name } = req.body;
 
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });
@@ -40,8 +41,20 @@ export function registerAuthRoutes(router: Router): void {
       name: name ?? undefined,
     });
 
-    // Issue JWT token
-    const token = signToken({ userId: user.id, email: user.email });
+    // Create session
+    const jti = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const db = await getDb();
+    await db.run(
+      'INSERT INTO sessions (id, user_id, email, expires_at) VALUES (?, ?, ?, ?)',
+      jti,
+      user.id,
+      user.email,
+      expiresAt,
+    );
+
+    // Issue JWT token with jti
+    const token = signToken({ userId: user.id, email: user.email, jti });
 
     res.status(201).json({
       user: {
@@ -54,8 +67,8 @@ export function registerAuthRoutes(router: Router): void {
     });
   });
 
-  router.post('/login', async (_req: Request, res: Response) => {
-    const { email, password } = _req.body;
+  router.post('/login', async (req: Request, res: Response) => {
+    const { email, password } = req.body;
 
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });
@@ -76,8 +89,20 @@ export function registerAuthRoutes(router: Router): void {
       return;
     }
 
-    // Issue JWT token
-    const token = signToken({ userId: user.id, email: user.email });
+    // Create session
+    const jti = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const db = await getDb();
+    await db.run(
+      'INSERT INTO sessions (id, user_id, email, expires_at) VALUES (?, ?, ?, ?)',
+      jti,
+      user.id,
+      user.email,
+      expiresAt,
+    );
+
+    // Issue JWT token with jti
+    const token = signToken({ userId: user.id, email: user.email, jti });
 
     res.json({
       user: {
@@ -113,13 +138,17 @@ export function registerAuthRoutes(router: Router): void {
     });
   });
 
-  // Logout — with stateless JWT auth, the client simply discards the token.
-  // The sessions table is cleaned up here for completeness if a session exists.
+  // Logout — deletes only the current session, leaving other devices' tokens valid.
   router.post('/logout', authenticate, requireAuth, async (req: Request, res: Response) => {
     const user = getUser(req);
     if (user) {
-      const db = await getDb();
-      await db.run(`DELETE FROM sessions WHERE email = ?`, user.email);
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.substring(7) ?? '';
+      const payload = verifyToken(token) as JwtPayload | null;
+      if (payload?.jti) {
+        const db = await getDb();
+        await db.run('DELETE FROM sessions WHERE id = ?', payload.jti);
+      }
     }
     res.json({ success: true });
   });
