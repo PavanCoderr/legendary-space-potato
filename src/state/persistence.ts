@@ -100,7 +100,14 @@ export function applySnapshot(base: AppState, snapshot: Partial<PersistedSnapsho
 
   return {
     ...base,
-    user: { ...base.user, ...(snapshot.user ?? {}) },
+    user: {
+      ...base.user,
+      ...(snapshot.user ?? {}),
+      // Guard against null/empty name from backend or stale snapshots
+      name: (snapshot.user?.name && typeof snapshot.user.name === 'string' && snapshot.user.name.trim())
+        ? snapshot.user.name.trim()
+        : base.user.name,
+    },
     session: { ...DEFAULT_SESSION, ...(snapshot.session ?? {}) },
     progress,
     quizAttempts: Array.isArray(snapshot.quizAttempts) ? snapshot.quizAttempts : [],

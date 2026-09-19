@@ -51,11 +51,14 @@ export function registerAuthRoutes(router: Router): void {
     // Hash password
     const passwordHash = await bcrypt.hash(password, bcryptRounds);
 
+    // Default name to email prefix if not provided
+    const resolvedName = (typeof name === 'string' && name.trim()) ? name.trim() : email.split('@')[0];
+
     // Create user
     const user = await createUser({
       email,
       password_hash: passwordHash,
-      name: name ?? undefined,
+      name: resolvedName,
     });
 
     // Create session

@@ -197,6 +197,27 @@ describe('Authentication', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.email).toBe(testEmail);
   });
+
+  it('should default name to email prefix when signup without name', async () => {
+    const emailWithoutName = 'noname@example.com';
+    const res = await request(app).post('/api/signup').send({
+      email: emailWithoutName,
+      password: testPassword,
+      // name is intentionally omitted
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.user.email).toBe(emailWithoutName);
+    // Name should be derived from email prefix (everything before @)
+    expect(res.body.user.name).toBe('noname');
+    expect(res.body.token).toBeDefined();
+
+    // Verify the token can be used
+    const sessionRes = await request(app)
+      .get('/api/session')
+      .set('Authorization', `Bearer ${res.body.token}`);
+    expect(sessionRes.status).toBe(200);
+    expect(sessionRes.body.user.name).toBe('noname');
+  });
 });
 
 describe('JWT Token Verification', () => {

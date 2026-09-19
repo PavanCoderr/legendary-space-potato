@@ -158,7 +158,7 @@ export function registerStateRoutes(): Router {
       user: dbUser ? {
         id: dbUser.id,
         email: dbUser.email,
-        name: dbUser.name,
+        name: dbUser.name ?? '',
         level: dbUser.level,
       } : snapshot?.user ?? null,
       activities,

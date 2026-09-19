@@ -143,9 +143,9 @@ export function KeyValue({ label, value }: { label: ReactNode; value: ReactNode 
 }
 
 /** Initials avatar used in the sidebar, topbar and profile page. */
-export function Avatar({ name, size = 36, title }: { name: string; size?: number; title?: string }) {
+export function Avatar({ name, size = 36, title }: { name?: string | null; size?: number; title?: string }) {
   const initials =
-    name
+    (name ?? '')
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
@@ -154,7 +154,7 @@ export function Avatar({ name, size = 36, title }: { name: string; size?: number
   return (
     <span
       className="avatar"
-      title={title ?? name}
+      title={title ?? name ?? ''}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
     >
       {initials}
