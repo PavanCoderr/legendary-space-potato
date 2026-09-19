@@ -245,7 +245,7 @@ function findMistakes(context: TutorContext): string {
   }
 
   const sim = context.simulation;
-  if (sim) {
+  if (sim && sim.measurement?.buckets) {
     const impossible = sim.measurement.buckets.filter(
       bucket => bucket.idealProbability < 1e-6 && bucket.count > 0,
     );
