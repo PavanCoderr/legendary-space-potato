@@ -35,17 +35,16 @@ export function buildSystemPrompt(request: TutorRequest): string {
           ? {
               shots: context.simulation.shots,
               stale: context.simulationStale,
-              probabilities: context.simulation.probabilities
-                .filter(entry => entry.probability > 1e-9)
-                .map(entry => ({ state: entry.label, probability: Number(entry.probability.toFixed(4)) })),
-              counts: context.simulation.measurement.buckets.map(bucket => ({ state: bucket.label, count: bucket.count })),
-              bloch: context.simulation.bloch.map((vector, index) => ({
+              probabilities: context.simulation.probabilities?.filter(entry => entry.probability > 1e-9)
+                .map(entry => ({ state: entry.label, probability: Number(entry.probability.toFixed(4)) })) ?? [],
+              counts: context.simulation.measurement?.buckets?.map(bucket => ({ state: bucket.label, count: bucket.count })) ?? [],
+              bloch: context.simulation.bloch?.map((vector, index) => ({
                 qubit: index,
-                x: Number(vector.x.toFixed(3)),
-                y: Number(vector.y.toFixed(3)),
-                z: Number(vector.z.toFixed(3)),
-                magnitude: Number(vector.magnitude.toFixed(3)),
-              })),
+                x: Number(vector.x?.toFixed(3) ?? '0'),
+                y: Number(vector.y?.toFixed(3) ?? '0'),
+                z: Number(vector.z?.toFixed(3) ?? '0'),
+                magnitude: Number(vector.magnitude?.toFixed(3) ?? '0'),
+              })) ?? [],
             }
           : null,
         failingChecks: context.lastChallengeChecks?.filter(check => !check.passed).map(check => check.detail) ?? [],
@@ -66,7 +65,7 @@ export async function remoteTutorReply(
   provider: AiProviderSettings,
 ): Promise<TutorReply> {
   const contextSummary = buildContextSummary(request.context);
-  if (!provider.apiKey.trim()) {
+  if (!provider.apiKey || !provider.apiKey.trim()) {
     return {
       ...localTutorReply(request),
       error: 'No API key configured — answered with the built-in tutor. Add a key in Settings to use your own model.',

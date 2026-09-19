@@ -155,7 +155,7 @@ export function buildContextSummary(context: TutorContext): string {
     const failing = context.lastChallengeChecks.filter(check => !check.passed);
     parts.push(failing.length ? `${failing.length} failing challenge check(s)` : 'all challenge checks passing');
   }
-  if (context.lastCodeIssues.length) parts.push(`${context.lastCodeIssues.length} code issue(s)`);
+  if (context.lastCodeIssues?.length) parts.push(`${context.lastCodeIssues.length} code issue(s)`);
   if (context.progress) {
     parts.push(
       `progress: concept ${context.progress.conceptRead ? 'read' : 'unread'}, lab ${context.progress.interactiveDone ? 'done' : 'open'}, quiz ${context.progress.quizCorrect}/${context.progress.quizTotal}, challenge ${context.progress.challengePassed ? 'passed' : 'open'}`,
@@ -293,15 +293,17 @@ function giveHint(context: TutorContext): string {
   if (!challenge) {
     return 'You are not inside a challenge right now. Open Practice to pick one, or ask me to explain the circuit you are building and I will suggest the next gate.';
   }
-  const hintIndex = Math.min(context.challengeAttempts, challenge.hints.length - 1);
-  const hint = challenge.hints[Math.max(0, hintIndex)];
+  const hints = challenge.hints ?? [];
+  const challengeAttempts = context.challengeAttempts ?? 0;
+  const hintIndex = Math.min(challengeAttempts, hints.length - 1);
+  const hint = hints[Math.max(0, hintIndex)];
   return [
     `Challenge: ${challenge.title} — ${challenge.brief}`,
     '',
     `Objectives: ${challenge.objectives.map(objective => `• ${objective}`).join(' ')}`,
     '',
     '',
-    hint ? `Hint ${hintIndex + 1}/${challenge.hints.length}: ${hint}` : 'No hints recorded for this challenge.',
+    hint ? `Hint ${hintIndex + 1}/${hints.length}: ${hint}` : 'No hints recorded for this challenge.',
     '',
     `What a passing run needs: ${challenge.expectedOutcome}`,
   ].join('\n');
