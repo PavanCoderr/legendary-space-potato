@@ -46,7 +46,12 @@ export const LESSONS: Lesson[] = [
       duration: '',
       summary:
         'Why a qubit is a vector of complex amplitudes rather than an unknown bit, and how the Born rule turns those amplitudes into the 0/1 you actually observe.',
-      chapters: [],
+      chapters: [
+        { at: '0:00', label: 'What is Quantum Computing?' },
+        { at: '6:00', label: 'Classical Bit vs Qubit' },
+        { at: '13:00', label: 'Quantum States' },
+        { at: '21:00', label: 'Measurement' },
+      ],
     },
     outline: [
       { title: 'What is Quantum Computing?', minutes: 6, summary: 'Why we need a different model of computation at all.' },
@@ -129,7 +134,12 @@ export const LESSONS: Lesson[] = [
       duration: '',
       summary:
         'The H gate step by step: from |0⟩ to |+⟩, why the measurement becomes a 50/50 coin flip, and how to tell |+⟩ apart from |−⟩ even though their probabilities match.',
-      chapters: [],
+      chapters: [
+        { at: '0:00', label: 'What is Superposition?' },
+        { at: '7:00', label: 'Hadamard Gate' },
+        { at: '15:00', label: 'Probability' },
+        { at: '20:00', label: 'Interactive Experiment' },
+      ],
     },
     outline: [
       { title: 'What is Superposition?', minutes: 7, summary: 'Combinations of basis states with complex amplitudes.' },
@@ -212,7 +222,11 @@ export const LESSONS: Lesson[] = [
       duration: '',
       summary:
         'How H + CNOT ties two qubits together, why only |00⟩ and |11⟩ ever appear, and what the shrinking Bloch vectors tell you about each individual qubit.',
-      chapters: [],
+      chapters: [
+        { at: '0:00', label: 'What is Entanglement?' },
+        { at: '7:00', label: 'Bell States' },
+        { at: '16:00', label: 'Interactive Experiment' },
+      ],
     },
     outline: [
       { title: 'What is Entanglement?', minutes: 7, summary: 'Correlations with no local explanation.' },
@@ -295,7 +309,13 @@ export const LESSONS: Lesson[] = [
       duration: '',
       summary:
         'X, Y, Z, S, T, H and CNOT as rotations on the Bloch sphere — which ones move the probabilities, which only move the phase, and how to read a gate sequence.',
-      chapters: [],
+      chapters: [
+        { at: '0:00', label: 'X Gate' },
+        { at: '5:00', label: 'Y Gate' },
+        { at: '10:00', label: 'Z Gate' },
+        { at: '15:00', label: 'H Gate' },
+        { at: '21:00', label: 'CNOT' },
+      ],
     },
     outline: [
       { title: 'X Gate', minutes: 5, summary: 'The quantum bit flip.' },
@@ -379,7 +399,12 @@ export const LESSONS: Lesson[] = [
       duration: '',
       summary:
         'Every algorithm in this course follows the same recipe: prepare a superposition, let the oracle interfere with it, then measure. We trace it through Deutsch–Jozsa and Grover on two qubits.',
-      chapters: [],
+      chapters: [
+        { at: '0:00', label: 'Why Quantum Algorithms?' },
+        { at: '6:00', label: 'Deutsch Algorithm' },
+        { at: '14:00', label: "Grover's Algorithm" },
+        { at: '24:00', label: "Shor's Algorithm" },
+      ],
     },
     outline: [
       { title: 'Why Quantum Algorithms?', minutes: 6, summary: 'Interference instead of brute force.' },

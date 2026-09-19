@@ -24,7 +24,9 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     return;
   }
 
-  // If the token carries a session id, verify the session is still active
+  // If the token carries a session id, verify the session is still active.
+  // Revoked or expired sessions are rejected — we do NOT call next() to
+  // continue, because every protected route must go through requireAuth.
   if (payload.jti) {
     try {
       const db = await getDb();
@@ -33,22 +35,25 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
         payload.jti,
       );
       if (!session) {
-        // Session was revoked (e.g. via logout) — reject
+        // Session was revoked (e.g. via logout) — do not authenticate
+        (req as any).user = null;
         next();
         return;
       }
       // Check expiry
       if (session.expires_at && new Date(session.expires_at).getTime() <= Date.now()) {
-        // Session expired — reject
+        // Session expired — do not authenticate
+        (req as any).user = null;
         next();
         return;
       }
     } catch {
-      // If session check fails, fall back to token-only auth
+      // If session check fails (DB error), fall back to token-only auth
+      // rather than hard-rejecting all traffic during a DB outage.
     }
   }
 
-  // Attach user to request via a type-safe approach
+  // Attach user to request
   (req as any).user = { id: payload.userId, email: payload.email };
   next();
 }

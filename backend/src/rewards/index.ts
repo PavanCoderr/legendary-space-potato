@@ -146,16 +146,19 @@ export function levelForXp(xp: number): { level: number; label: string; intoLeve
 export async function awardXp(
   userId: string,
   award: XpAward,
-): Promise<{ xp: number; streak: number; newlyUnlocked: string[] }> {
+): Promise<{ xp: number; streak: number; newlyUnlocked: string[]; awarded: boolean }> {
   const db = await getDb();
   const now = new Date().toISOString();
 
   await db.run('BEGIN');
 
   try {
-    // Record the XP award in the ledger
-    await db.run(
-      `INSERT INTO xp_ledger (id, user_id, amount, reason, source_type, source_id, created_at)
+    // Record the XP award in the ledger. Use INSERT OR IGNORE so the
+    // UNIQUE(user_id, source_type, source_id) constraint enforces idempotency:
+    // the same quiz lesson, etc. can be awarded at most once. If the insert
+    // is ignored (duplicate), `changes` will be 0 and we skip the XP bump.
+    const insertResult = await db.run(
+      `INSERT OR IGNORE INTO xp_ledger (id, user_id, amount, reason, source_type, source_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       uuidv4(),
       userId,
@@ -166,13 +169,17 @@ export async function awardXp(
       now,
     );
 
-    // Update user's total XP
-    await db.run(
-      `UPDATE users SET xp = xp + ?, updated_at = ? WHERE id = ?`,
-      award.amount,
-      now,
-      userId,
-    );
+    const awarded = (insertResult.changes ?? 0) > 0;
+
+    // Only update user XP if the ledger row was actually inserted
+    if (awarded) {
+      await db.run(
+        `UPDATE users SET xp = xp + ?, updated_at = ? WHERE id = ?`,
+        award.amount,
+        now,
+        userId,
+      );
+    }
 
     // Update streak (active days) — register today as an active day
     await updateStreak(db, userId, now);
@@ -192,6 +199,7 @@ export async function awardXp(
       xp: user?.xp ?? 0,
       streak: user?.streak ?? 0,
       newlyUnlocked,
+      awarded,
     };
   } catch (error) {
     await db.run('ROLLBACK');
@@ -204,6 +212,14 @@ export async function awardXp(
  * Recomputes streak from the activities table's active_days JSON array.
  */
 async function updateStreak(db: SqliteDatabase, userId: string, now: string): Promise<void> {
+  // Ensure an activities row exists — a user's first XP award (e.g. from a quiz)
+  // happens before they ever hit GET /state, so the row may not exist yet.
+  await db.run(
+    `INSERT OR IGNORE INTO activities (user_id, simulations, lessons_completed, quizzes_taken, challenges_passed, active_days, last_active_at, total_shots, updated_at)
+     VALUES (?, 0, 0, 0, 0, ?, ?, 0, ?)`,
+    userId, JSON.stringify([]), now, now,
+  );
+
   // Add today to active_days
   const activities = await db.get<{ active_days: string }>(
     'SELECT active_days FROM activities WHERE user_id = ?',
@@ -282,33 +298,33 @@ export function computeStreak(activeDays: string[]): number {
  */
 async function aggregateStats(db: SqliteDatabase, userId: string): Promise<AggregatedStats> {
   // Count completed lessons
-  const completedRows = await db.all<{ lesson_id: string }>(
+  const completedRows = await db.all<{ lesson_id: string }[]>(
     `SELECT lesson_id FROM lesson_progress WHERE user_id = ? AND status = 'completed'`,
     userId,
   );
   const completedLessons = completedRows.map(r => r.lesson_id);
 
   // Count started lessons
-  const startedRows = await db.all<{ lesson_id: string }>(
+  const startedRows = await db.all<{ lesson_id: string }[]>(
     `SELECT lesson_id FROM lesson_progress WHERE user_id = ? AND status != 'not-started'`,
     userId,
   );
   const startedLessonIds = [...new Set(startedRows.map(r => r.lesson_id))];
 
   // Quiz stats
-  const quizRows = await db.all<{ correct: boolean }>(
+  const quizRows = await db.all<{ correct: number }[]>(
     `SELECT correct FROM quiz_attempts WHERE user_id = ?`,
     userId,
   );
-  const quizzesCorrect = quizRows.filter(r => r.correct === 1 || r.correct === true).length;
+  const quizzesCorrect = quizRows.filter(r => !!r.correct).length;
 
   // Challenge stats
-  const challengeRows = await db.all<{ challenge_id: string; passed: boolean }>(
+  const challengeRows = await db.all<{ challenge_id: string; passed: number }[]>(
     `SELECT challenge_id, passed FROM challenge_attempts WHERE user_id = ?`,
     userId,
   );
   const challengesPassed = [...new Set(
-    challengeRows.filter(r => r.passed === 1 || r.passed === true).map(r => r.challenge_id)
+    challengeRows.filter(r => !!r.passed).map(r => r.challenge_id)
   )].length;
 
   // Activity stats
@@ -369,7 +385,7 @@ async function evaluateAndRecordAchievements(
   now: string,
 ): Promise<string[]> {
   const stats = await aggregateStats(db, userId);
-  const alreadyUnlocked = await db.all<{ achievement_id: string }>(
+  const alreadyUnlocked = await db.all<{ achievement_id: string }[]>(
     `SELECT achievement_id FROM user_achievements WHERE user_id = ?`,
     userId,
   );
@@ -444,7 +460,7 @@ export async function getUserProgress(userId: string): Promise<{
     achievement_id: string;
     unlocked_at: string;
     xp_bonus: number;
-  }>(
+  }[]>(
     `SELECT achievement_id, unlocked_at, xp_bonus FROM user_achievements WHERE user_id = ? ORDER BY unlocked_at ASC`,
     userId,
   );
@@ -466,7 +482,7 @@ export async function getUserProgress(userId: string): Promise<{
     reason: string;
     source_type: string;
     created_at: string;
-  }>(
+  }[]>(
     `SELECT amount, reason, source_type, created_at FROM xp_ledger WHERE user_id = ? ORDER BY created_at DESC LIMIT 20`,
     userId,
   );

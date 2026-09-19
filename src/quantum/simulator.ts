@@ -89,6 +89,9 @@ export interface SimulationResult {
 
 export interface SimulationOptions {
   shots?: number;
+  /** Optional seed for reproducible results (used by HTTP backend; the local
+   * implementation uses `random` directly). */
+  seed?: number;
   /** Injectable randomness so tests and reproducible runs can pass a seeded PRNG. */
   random?: () => number;
   now?: () => number;

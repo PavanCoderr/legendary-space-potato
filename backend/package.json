@@ -19,10 +19,12 @@
     "body-parser": "^2.3.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
     "openai": "^7.17.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
+    "tsx": "^4.23.13",
     "uuid": "^11.0.0"
   },
   "devDependencies": {
@@ -34,7 +36,6 @@
     "@types/supertest": "^2.0.12",
     "@types/uuid": "^10.0.0",
     "supertest": "^7.1.0",
-    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^3.0.0"
   }

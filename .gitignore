@@ -6,7 +6,8 @@ coverage/
 .vite/
 .aider*
 *.db
-data/
+/data/
 .env
 .env.*
 !.env.example
+.agent/resource/

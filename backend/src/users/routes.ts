@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
+import { getUserProgress } from '../rewards';
 
 /**
  * Register user state routes.
@@ -56,15 +57,53 @@ export function registerStateRoutes(): Router {
       user.id
     );
 
+    // Fetch server-side XP/streak/achievements so the existing UI contract is met
+    const progress = await getUserProgress(user.id);
+
+    // Load the stored client snapshot so progress is not lost on re-login.
+    // Server-authoritative fields override snapshot values (snapshot.xp may drift
+    // from the server ledger — the ledger is the source of truth).
+    const snapshotRow = await db.get<{ snapshot: string }>(
+      'SELECT snapshot FROM user_snapshots WHERE user_id = ?',
+      user.id,
+    );
+    const snapshot = snapshotRow ? (JSON.parse(snapshotRow.snapshot) as Record<string, unknown>) : null;
+
+    // achievements must be string[] per the frontend PersistedSnapshot contract.
+    // Server returns detailed objects; extract the ids here for the snapshot path.
+    // Union server-unlocked ids with any from the stored snapshot so an empty
+    // snapshot array never clobbers server-awarded achievements.
+    const serverIds = (progress.achievements ?? []).map(a => a.id);
+    const snapshotIds: string[] = (snapshot?.achievements as unknown) === null
+      ? []
+      : Array.isArray(snapshot?.achievements) && snapshot!.achievements.every(a => typeof a === 'string')
+        ? snapshot!.achievements as string[]
+        : [];
+    const achievementIds: string[] = [...new Set([...snapshotIds, ...serverIds])];
+
     res.json({
+      // Spread the stored snapshot first, so client data (progress, projects,
+      // currentCircuit, settings, tutorHistory, etc.) round-trips correctly.
+      ...(snapshot ?? {}),
+      // Server values always win (spec §3 — server-authoritative xp/streak)
       user: dbUser ? {
         id: dbUser.id,
         email: dbUser.email,
         name: dbUser.name,
         level: dbUser.level,
-      } : null,
+      } : snapshot?.user ?? null,
       activities,
       circuits: recentCircuits,
+      xp: progress.xp,
+      streak: progress.streak,
+      achievements: achievementIds,
+      levelInfo: {
+        level: progress.level,
+        label: progress.levelLabel,
+        intoLevel: progress.intoLevel,
+        needed: progress.needed,
+      },
+      recentXp: progress.recentXp,
     });
   });
 
@@ -102,31 +141,8 @@ export function registerStateRoutes(): Router {
 
       res.json({ success: true });
     } catch (error) {
-      // Create snapshot table on first use
-      await db.exec(`
-        CREATE TABLE IF NOT EXISTS user_snapshots (
-          user_id TEXT PRIMARY KEY,
-          snapshot TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `);
-
-      await db.run(
-        `INSERT OR REPLACE INTO user_snapshots (user_id, snapshot, updated_at) VALUES (?, ?, ?)`,
-        user.id,
-        JSON.stringify(snapshot),
-        now,
-      );
-
-      await db.run(
-        `UPDATE activities SET last_active_at = ?, updated_at = ? WHERE user_id = ?`,
-        now,
-        now,
-        user.id,
-      );
-
-      res.json({ success: true });
+      console.error('State save error:', error);
+      res.status(500).json({ error: 'Failed to save state' });
     }
   });
 

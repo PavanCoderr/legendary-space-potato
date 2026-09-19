@@ -120,4 +120,45 @@ describe('User State Endpoints', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('round-trips lesson progress: PUT progress → GET returns same progress', async () => {
+    // Store a snapshot with lesson progress
+    const snapshot = {
+      version: 1,
+      progress: {
+        qubits: { status: 'in-progress', videoWatched: true, conceptRead: true },
+        superposition: { status: 'completed', videoWatched: true, conceptRead: true, quizCorrect: 2, quizTotal: 3 },
+      },
+      projects: [
+        { id: 'proj-roundtrip', name: 'My Circuit', circuit: { name: 'test', numQubits: 1, ops: [] }, code: '', lessonId: 'qubits', status: 'draft', tags: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ],
+      achievements: ['first-steps'],
+      currentCircuit: { name: 'My Circuit', numQubits: 1, ops: [{ type: 'H', qubits: [0], column: 0 }] },
+    };
+
+    const putRes = await request(app)
+      .put('/state')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send(snapshot);
+
+    expect(putRes.status).toBe(200);
+
+    // GET the state back and verify progress round-trips
+    const getRes = await request(app)
+      .get('/state')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(getRes.status).toBe(200);
+    // The stored snapshot fields should come back
+    expect(getRes.body.progress).toBeDefined();
+    expect(getRes.body.progress.qubits).toEqual(snapshot.progress.qubits);
+    expect(getRes.body.progress.superposition.status).toBe('completed');
+    expect(getRes.body.projects).toBeDefined();
+    expect(getRes.body.projects[0].id).toBe('proj-roundtrip');
+    // Server-authoritative fields are present alongside the snapshot
+    expect(getRes.body.xp).toBeDefined();
+    expect(getRes.body.streak).toBeDefined();
+    expect(getRes.body.levelInfo).toBeDefined();
+    expect(Array.isArray(getRes.body.achievements)).toBe(true);
+  });
 });

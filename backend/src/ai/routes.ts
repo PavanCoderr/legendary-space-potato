@@ -133,23 +133,12 @@ async function generateTutorResponse(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Provider error — return a stub response so the chat keeps working
+    // Provider error — return a clear error response, no fake content
     console.error('AI provider error:', message);
 
     return {
-      text: `I'm having trouble connecting to the AI provider right now (${message}). Let me help you with what I know about quantum computing:
-
-- **Superposition** allows qubits to exist in multiple states simultaneously
-- **Entanglement** creates correlations between qubits that enable quantum speedup
-- **Interference** is used to amplify correct answers and cancel out wrong ones
-
-What specific aspect would you like me to explain further?`,
+      text: `AI provider error: ${message}. Please try again later or contact support.`,
       action: 'explain',
-      followUps: [
-        'Explain superposition in more detail',
-        'Show me an example circuit',
-        'How does this relate to quantum algorithms?',
-      ],
       error: message,
     };
   }

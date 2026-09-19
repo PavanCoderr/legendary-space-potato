@@ -98,6 +98,7 @@ export async function seedDatabase(): Promise<void> {
       `UPDATE lessons SET description = ? WHERE id = ?`,
       JSON.stringify({
         summary: lesson.summary,
+        concept: lesson.concept,
         objectives: lesson.objectives,
         prerequisites: lesson.prerequisites,
         xp: lesson.xp,
@@ -109,6 +110,7 @@ export async function seedDatabase(): Promise<void> {
           title: lesson.interactive.title,
           instructions: lesson.interactive.instructions,
           availableGates: lesson.interactive.availableGates,
+          startCircuit: lesson.interactive.startCircuit,
           successNote: lesson.interactive.successNote,
           completionCheck: lesson.interactive.completionCheck,
         },
@@ -150,45 +152,9 @@ export async function seedDatabase(): Promise<void> {
     );
   }
 
-  // Seed challenges — store as reference data in a dedicated table
-  await db.run(`
-    CREATE TABLE IF NOT EXISTS challenges (
-      id TEXT PRIMARY KEY,
-      lesson_id TEXT NOT NULL,
-      topic TEXT NOT NULL,
-      title TEXT NOT NULL,
-      difficulty TEXT NOT NULL,
-      xp INTEGER NOT NULL,
-      brief TEXT NOT NULL,
-      objectives TEXT NOT NULL,
-      hints TEXT NOT NULL,
-      shots INTEGER NOT NULL,
-      starter_circuit TEXT NOT NULL,
-      expected_outcome TEXT,
-      solution_code TEXT,
-      created_at TEXT DEFAULT (datetime('now', 'utc')),
-      FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
-    )
-  `);
-  await db.run(`
-    CREATE TABLE IF NOT EXISTS challenge_objectives (
-      challenge_id TEXT NOT NULL,
-      \`index\` INTEGER NOT NULL,
-      text TEXT NOT NULL,
-      PRIMARY KEY (challenge_id, \`index\`),
-      FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
-    )
-  `);
-  await db.run(`
-    CREATE TABLE IF NOT EXISTS challenge_hints (
-      challenge_id TEXT NOT NULL,
-      \`index\` INTEGER NOT NULL,
-      text TEXT NOT NULL,
-      PRIMARY KEY (challenge_id, \`index\`),
-      FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
-    )
-  `);
-
+  // Seed challenges — data is stored in the `challenges` table defined by
+  // migration 001 (challenges, challenge_objectives, challenge_hints).
+  // We only insert data here, not table definitions.
   for (const challenge of CHALLENGES) {
     await db.run(
       `INSERT OR REPLACE INTO challenges

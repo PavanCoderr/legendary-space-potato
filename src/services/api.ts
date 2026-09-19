@@ -1,4 +1,4 @@
-import { LESSONS } from '../data/lessons';
+import { LESSONS, replaceLessons as replaceLessonsFromLessons } from '../data/lessons';
 import type { AiProviderSettings, Lesson, QuizAttempt } from '../data/types';
 import type { QuantumCircuit } from '../quantum/circuit';
 import { runSimulation, type SimulationOptions, type SimulationResult } from '../quantum/simulator';
@@ -381,3 +381,21 @@ export function createHttpApi(baseUrl: string): QubitVerseApi {
 export const api: QubitVerseApi = API_BASE ? createHttpApi(API_BASE) : createLocalApi();
 
 export const API_MODE_LABEL = api.kind === 'http' ? `Connected to ${API_BASE}` : 'Local storage + in-browser simulator';
+
+/**
+ * E4b: Bootstrap the curriculum from the backend-served API.
+ * Mutates LESSONS/LESSON_MAP in place so the first render shows backend lessons.
+ * Use with Promise.race against a timeout (1.5s) so a downed backend falls back to bundled curriculum.
+ */
+export async function bootstrapLessons(): Promise<void> {
+  if (!API_BASE || typeof window === 'undefined') return;
+  try {
+    const lessons = await api.fetchLessons();
+    replaceLessonsFromLessons(lessons);
+  } catch {
+    // fetchLessons already falls back to bundled on its own; this is just a guard.
+  }
+}
+
+// Re-export for E4b bootstrap
+export { replaceLessons, TOTAL_LESSON_XP } from '../data/lessons';

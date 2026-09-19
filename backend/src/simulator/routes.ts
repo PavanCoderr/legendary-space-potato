@@ -10,6 +10,7 @@ import {
   createSeededRandom,
 } from '../quantum/simulator';
 import type { SimulationResult } from '../quantum/simulator';
+import { capShots } from '../utils/shots';
 
 /**
  * Register simulator routes.
@@ -49,8 +50,11 @@ export function registerSimulateRoutes(): Router {
         return;
       }
 
+      // Cap shots to prevent CPU-bound requests (CG1)
+      const cappedShots = capShots(shots);
+
       // Build simulation options
-      const options: { shots: number; random?: () => number } = { shots: Math.max(1, Math.floor(shots)) };
+      const options: { shots: number; random?: () => number } = { shots: cappedShots };
 
       // If a seed is provided, use a seeded PRNG for reproducible results
       if (typeof seed === 'number' && !isNaN(seed)) {
@@ -69,7 +73,7 @@ export function registerSimulateRoutes(): Router {
              last_active_at = ?,
              updated_at = ?
          WHERE user_id = ?`,
-        shots,
+        cappedShots,
         new Date().toISOString(),
         new Date().toISOString(),
         user.id

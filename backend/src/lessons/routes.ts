@@ -44,6 +44,39 @@ export interface LessonProgress {
 }
 
 /**
+ * Unpack the rich lesson metadata stored as JSON in the `description` column.
+ * Topic rows (which have a plain-string description) pass through with empty meta.
+ */
+interface LessonMeta {
+  summary?: string;
+  concept?: unknown;
+  objectives?: string[];
+  prerequisites?: string[];
+  xp?: number;
+  video?: unknown;
+  visualization?: unknown;
+  aiPrompts?: unknown;
+  interactive?: unknown;
+  example?: unknown;
+  quizIds?: string[];
+  challengeId?: string;
+  nextLessonId?: string | null;
+  icon?: string;
+}
+
+function unpackLesson(row: Lesson): Lesson & LessonMeta {
+  let meta: LessonMeta = {};
+  try {
+    if (typeof row.description === 'string' && row.description.startsWith('{')) {
+      meta = JSON.parse(row.description) as LessonMeta;
+    }
+  } catch {
+    meta = {};
+  }
+  return { ...row, ...meta };
+}
+
+/**
  * Register lesson-related routes.
  *
  * Routes:
@@ -54,14 +87,14 @@ export interface LessonProgress {
 export function registerLessonRoutes(): Router {
   const router = Router();
 
-  // List all lessons
+  // List all lessons (exclude topic rows — those are just category headers)
   router.get('/', async (_req: Request, res: Response) => {
     const db = await getDb();
     const lessons = await db.all<Lesson[]>(
-      'SELECT * FROM lessons ORDER BY `order` ASC'
+      'SELECT * FROM lessons WHERE id NOT LIKE \'topic-%\' ORDER BY `order` ASC'
     );
-    // Return a plain array to match the frontend's Lesson[] contract
-    res.json(lessons);
+    // Unpack each lesson's JSON metadata and merge with the table row
+    res.json(lessons.map(unpackLesson));
   });
 
   // Get a single lesson with concepts
@@ -99,7 +132,7 @@ export function registerLessonRoutes(): Router {
     );
 
     res.json({
-      lesson: { ...lesson, concepts },
+      lesson: { ...unpackLesson(lesson), concepts },
       progress: progress ?? null,
     });
   });
@@ -163,20 +196,34 @@ export function registerLessonRoutes(): Router {
       );
     } else {
       // Update existing progress
+      // CG4: A lesson is 'completed' only when ALL SIX engagement flags are set.
+      // Previously status='completed' used a 5-flag condition while completed_at
+      // used a 6-flag condition, allowing a lesson to be marked completed without
+      // a completion timestamp. Both now require the full 6-flag set for consistency.
+      //
+      // Note: SQLite CASE expressions in an UPDATE use the ORIGINAL row values,
+      // not the newly-assigned SET values. So we read the current flags first,
+      // compute the isCompleted result in JS, and pass it as a parameter.
+      const allFlags = ['concept_read', 'video_watched', 'interactive_done', 'simulation_run', 'tutor_asked', 'challenge_passed'];
+      const current = await db.get<Record<string, number>>(
+        'SELECT concept_read, video_watched, interactive_done, simulation_run, tutor_asked, challenge_passed FROM lesson_progress WHERE user_id = ? AND lesson_id = ?',
+        user.id, id
+      );
+      const isCompleted = allFlags.every(f => {
+        const val = current?.[f];
+        return f === action ? true : Boolean(val);
+      });
+
       await db.run(
         `UPDATE lesson_progress
          SET ${action} = 1,
-             status = CASE
-               WHEN concept_read AND video_watched AND interactive_done AND simulation_run AND tutor_asked THEN 'completed'
-               ELSE 'in-progress'
-             END,
-             completed_at = CASE
-               WHEN concept_read AND video_watched AND interactive_done AND simulation_run AND tutor_asked AND challenge_passed THEN ?
-               ELSE completed_at
-             END,
+             status = ?,
+             completed_at = CASE WHEN ? = 1 THEN ? ELSE completed_at END,
              last_visited_at = ?,
              updated_at = ?
          WHERE user_id = ? AND lesson_id = ?`,
+        isCompleted ? 'completed' : 'in-progress',
+        isCompleted ? 1 : 0,
         now,
         now,
         now,
@@ -200,7 +247,7 @@ export function registerLessonRoutes(): Router {
           amount: lesson.xp,
           reason: `Lesson complete: ${lesson.title}`,
           sourceType: 'lesson_complete',
-          sourceId: id,
+          sourceId: id as string,
         });
         res.json({ progress: updated, xpAwarded: lesson.xp, ...result });
         return;

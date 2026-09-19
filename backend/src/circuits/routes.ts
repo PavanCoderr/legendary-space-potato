@@ -2,8 +2,9 @@ import { Router, type Request, type Response } from 'express';
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
-import { deserializeCircuit } from '../quantum/circuit';
+import { deserializeCircuit, validateCircuit } from '../quantum/circuit';
 import { simulate, createSeededRandom } from '../quantum/simulator';
+import { capShots } from '../utils/shots';
 
 export interface Circuit {
   id: string;
@@ -47,7 +48,7 @@ export function registerCircuitRoutes(): Router {
   // Simulate a circuit
   router.post('/:id/simulate', async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { shots = 1024, initial_state } = req.body;
+    const { shots = 1024, seed } = req.body;
     const user = getUser(req);
 
     if (!user) {
@@ -110,14 +111,17 @@ export function registerCircuitRoutes(): Router {
         return;
       }
 
+      // Cap shots to prevent CPU-bound requests (CG1)
+      const cappedShots = capShots(shots);
+
       // Build simulation options
       const options: { shots: number; random?: () => number } = {
-        shots: Math.max(1, Math.floor(shots)),
+        shots: cappedShots,
       };
 
       // If a seed is provided, use a seeded PRNG for reproducible results
-      if (typeof initial_state === 'number' && !isNaN(initial_state)) {
-        options.random = createSeededRandom(initial_state);
+      if (typeof seed === 'number' && !isNaN(seed)) {
+        options.random = createSeededRandom(seed);
       }
 
       // Run the real simulation
@@ -137,7 +141,7 @@ export function registerCircuitRoutes(): Router {
             .filter(a => a.probability > 0)
             .map(a => a.label),
           measurements,
-          shots_used: simResult.shots,
+          shots_used: cappedShots,
         };
 
         res.json(result);
@@ -173,6 +177,33 @@ export function registerCircuitRoutes(): Router {
     }
 
     try {
+      // Validate the circuit JSON before persisting — reject unknown gates,
+      // out-of-range qubits, oversized payloads (C2).
+      const { circuit: qc, issues: deserializeIssues } = deserializeCircuit(circuit, 'Saved Circuit');
+      if (deserializeIssues.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid circuit: ${deserializeIssues.join('; ')}`,
+        });
+        return;
+      }
+
+      // Validate structural issues that deserialization alone doesn't catch:
+      // e.g., two gates acting on the same qubit in the same time step (C2 residual).
+      const validationIssues = validateCircuit(qc);
+      if (validationIssues.length > 0) {
+        const errorMessages = validationIssues
+          .filter((issue) => issue.severity === 'error')
+          .map((issue) => issue.message);
+        if (errorMessages.length > 0) {
+          res.status(400).json({
+            success: false,
+            error: `Invalid circuit: ${errorMessages.join('; ')}`,
+          });
+          return;
+        }
+      }
+
       const db = await getDb();
       const now = new Date().toISOString();
 

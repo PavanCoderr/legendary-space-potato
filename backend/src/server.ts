@@ -12,7 +12,11 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
-app.use(json({ limit: '10mb' }));
+app.use(json({ limit: '1mb' }));
+
+// Trust proxy for rate limiting behind Render's proxy (free tier)
+// Without this, all users share one IP and the 10/15min auth limiter becomes a global lockout
+app.set('trust proxy', 1);
 
 // Routes
 registerRoutes(app);

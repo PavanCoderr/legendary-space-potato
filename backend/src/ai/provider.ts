@@ -215,7 +215,9 @@ export class AnthropicProvider implements AiProvider {
 }
 
 // ---------------------------------------------------------------------------
-// Stub provider — always returns the same response (for development / no key)
+// Stub provider — returns an honest "not configured" message when no AI
+// provider is set up. Never fabricates explanations; the learner can tell
+// the tutor is not wired up and an operator knows to set an API key.
 // ---------------------------------------------------------------------------
 
 export class StubProvider implements AiProvider {
@@ -232,15 +234,7 @@ export class StubProvider implements AiProvider {
           index: 0,
           message: {
             role: 'assistant',
-            content: `Thanks for your question about quantum computing! I'd be happy to help you understand this better.
-
-In quantum computing, the concepts can be tricky to grasp at first. Let me break this down for you:
-
-- **Superposition** allows qubits to exist in multiple states simultaneously
-- **Entanglement** creates correlations between qubits that enable quantum speedup
-- **Interference** is used to amplify correct answers and cancel out wrong ones
-
-What specific aspect would you like me to explain further?`,
+            content: '⚠️ AI Tutor not configured. The server has no AI provider key set (OPENAI_API_KEY, ANTHROPIC_API_KEY, or OPENROUTER_API_KEY). An operator needs to set one in the server environment to enable real tutoring.',
           },
           finish_reason: 'stop',
         },

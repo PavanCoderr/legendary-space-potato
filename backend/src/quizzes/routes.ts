@@ -151,12 +151,13 @@ export function registerQuizRoutes(): Router {
         }
       }
 
-      const response: { recorded: boolean; explanation?: string; xpAwarded?: number } = {
+      const response: { recorded: boolean; explanation?: string; xpAwarded?: number; newXp?: number } = {
         recorded: true,
-        explanation: isCorrect ? question.explanation : undefined,
+        explanation: question.explanation ?? undefined,
       };
 
-      // Award XP if this was a correct answer
+      // Award XP if this was a correct answer (only if not already awarded —
+      // the xp_ledger UNIQUE constraint enforces idempotency per source_id)
       if (isCorrect) {
         const quiz = QUIZZES.find(q => q.id === quizId);
         if (quiz && quiz.xp > 0) {
@@ -164,10 +165,12 @@ export function registerQuizRoutes(): Router {
             amount: quiz.xp,
             reason: `Quiz correct: ${quiz.question.substring(0, 80)}...`,
             sourceType: 'quiz_correct',
-            sourceId: quizId,
+            sourceId: quizId as string,
           });
-          response.xpAwarded = quiz.xp;
-          response.newXp = xpResult.xp;
+          if (xpResult.awarded) {
+            response.xpAwarded = quiz.xp;
+            response.newXp = xpResult.xp;
+          }
         }
       }
 
@@ -261,13 +264,15 @@ export function registerQuizRoutes(): Router {
     if (isCorrect) {
       const quiz = QUIZZES.find(q => q.id === quizId);
       if (quiz && quiz.xp > 0) {
-        await awardXp(user.id, {
+        const xpResult = await awardXp(user.id, {
           amount: quiz.xp,
           reason: `Quiz correct: ${quiz.question.substring(0, 80)}...`,
           sourceType: 'quiz_correct',
-          sourceId: quizId,
+          sourceId: quizId as string,
         });
-        response.xpAwarded = quiz.xp;
+        if (xpResult.awarded) {
+          response.xpAwarded = quiz.xp;
+        }
       }
     }
 

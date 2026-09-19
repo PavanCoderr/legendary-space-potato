@@ -147,6 +147,56 @@ describe('Authentication', () => {
     const res = await request(app).post('/api/logout');
     expect(res.status).toBe(401);
   });
+
+  it('should reject a revoked token after logout', async () => {
+    // Login to get a fresh token
+    const loginRes = await request(app).post('/api/login').send({
+      email: testEmail,
+      password: testPassword,
+    });
+    expect(loginRes.status).toBe(200);
+    const freshToken = loginRes.body.token;
+
+    // Logout this specific token
+    await request(app)
+      .post('/api/logout')
+      .set('Authorization', `Bearer ${freshToken}`)
+      .expect(200);
+
+    // The revoked token should no longer work
+    const res = await request(app)
+      .get('/api/session')
+      .set('Authorization', `Bearer ${freshToken}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('should keep other sessions valid after one logout', async () => {
+    // Login twice to get two tokens
+    const loginRes1 = await request(app).post('/api/login').send({
+      email: testEmail,
+      password: testPassword,
+    });
+    const token1 = loginRes1.body.token;
+
+    const loginRes2 = await request(app).post('/api/login').send({
+      email: testEmail,
+      password: testPassword,
+    });
+    const token2 = loginRes2.body.token;
+
+    // Logout the first token only
+    await request(app)
+      .post('/api/logout')
+      .set('Authorization', `Bearer ${token1}`)
+      .expect(200);
+
+    // token2 from the second device should still work
+    const res = await request(app)
+      .get('/api/session')
+      .set('Authorization', `Bearer ${token2}`);
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe(testEmail);
+  });
 });
 
 describe('JWT Token Verification', () => {

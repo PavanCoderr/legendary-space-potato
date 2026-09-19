@@ -199,4 +199,95 @@ describe('Saved Circuits', () => {
 
     expect(res.status).toBe(404);
   });
+
+  // CG3: Bell circuit simulation via POST /api/circuits/:id/simulate
+  it('Bell circuit simulation produces only |00⟩ and |11⟩ outcomes (CG3)', async () => {
+    const circuitJson = {
+      name: 'bell',
+      numQubits: 2,
+      ops: [
+        { type: 'H', qubits: [0], column: 0 },
+        { type: 'CNOT', qubits: [1, 0], column: 1 }, // target=1, control=0 per convention
+        { type: 'M', qubits: [0], column: 2 },
+        { type: 'M', qubits: [1], column: 2 },
+      ],
+    };
+
+    // Save the circuit first
+    const saveRes = await request(app)
+      .post('/api/circuits/save')
+      .set('Authorization', `Bearer ${user1Token}`)
+      .send({
+        name: 'Bell Test',
+        circuit: circuitJson,
+      });
+    expect(saveRes.status).toBe(201);
+
+    // Find the saved circuit ID
+    const stateRes = await request(app)
+      .get('/state')
+      .set('Authorization', `Bearer ${user1Token}`);
+    const circuit = stateRes.body.circuits.find((c: any) => c.name === 'Bell Test');
+    expect(circuit).toBeDefined();
+
+    // Simulate with a large shot count and seed for reproducibility
+    const res = await request(app)
+      .post(`/api/circuits/${circuit.id}/simulate`)
+      .set('Authorization', `Bearer ${user1Token}`)
+      .send({ shots: 1000, seed: 42 });
+
+    expect(res.status).toBe(200);
+    const measurements = res.body.measurements;
+
+    // Only |00⟩ and |11⟩ should appear — no |01⟩ or |10⟩
+    const labels = Object.keys(measurements);
+    expect(labels).toContain('00');
+    expect(labels).toContain('11');
+    expect(labels).not.toContain('01');
+    expect(labels).not.toContain('10');
+
+    // The two valid outcomes should be roughly 50/50
+    const total00 = measurements['00'];
+    const total11 = measurements['11'];
+    const sum = total00 + total11;
+    expect(total00 / sum).toBeCloseTo(0.5, 1);
+    expect(total11 / sum).toBeCloseTo(0.5, 1);
+  });
+
+  // CG3: Save validation tests
+  it('should reject circuit save with unknown gate type', async () => {
+    const res = await request(app)
+      .post('/api/circuits/save')
+      .set('Authorization', `Bearer ${user1Token}`)
+      .send({
+        name: 'Bad Gate Test',
+        circuit: { name: 'test', numQubits: 1, ops: [{ type: 'NOT_A_GATE', qubits: [0], column: 0 }] },
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Invalid circuit');
+  });
+
+  it('should reject circuit save with out-of-range qubit', async () => {
+    const res = await request(app)
+      .post('/api/circuits/save')
+      .set('Authorization', `Bearer ${user1Token}`)
+      .send({
+        name: 'Bad Qubit Test',
+        circuit: { name: 'test', numQubits: 1, ops: [{ type: 'X', qubits: [5], column: 0 }] },
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Invalid circuit');
+  });
+
+  it('should accept a valid circuit save', async () => {
+    const res = await request(app)
+      .post('/api/circuits/save')
+      .set('Authorization', `Bearer ${user1Token}`)
+      .send({
+        name: 'Valid Circuit',
+        circuit: { name: 'test', numQubits: 2, ops: [{ type: 'H', qubits: [0], column: 0 }] },
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+  });
 });

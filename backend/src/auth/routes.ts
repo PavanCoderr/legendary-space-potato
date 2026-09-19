@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { getDb } from '../db';
 import { findUserByEmail, createUser } from '../db/users';
 import { signToken, verifyToken, JwtPayload } from '../utils/jwt';
@@ -8,8 +9,24 @@ import { v4 as uuidv4 } from 'uuid';
 
 const bcryptRounds = 10;
 
+// Rate limit auth attempts to prevent brute-force — 10 attempts per 15 min per IP.
+// The limit can be overridden via AUTH_RATE_LIMIT_MAX (useful for testing).
+const authMax = process.env.AUTH_RATE_LIMIT_MAX
+  ? parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)
+  : process.env.NODE_ENV === 'test'
+    ? 1000
+    : 10;
+
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: authMax,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export function registerAuthRoutes(router: Router): void {
-  router.post('/signup', async (req: Request, res: Response) => {
+  router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
     const { email, password, name } = req.body;
 
     if (!email || !password) {
@@ -67,7 +84,7 @@ export function registerAuthRoutes(router: Router): void {
     });
   });
 
-  router.post('/login', async (req: Request, res: Response) => {
+  router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {

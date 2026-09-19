@@ -116,8 +116,8 @@ describe('AI Provider', () => {
       .send({ message: 'Tell me about quantum gates' });
 
     expect(res.status).toBe(200);
-    // Stub provider returns text about superposition/entanglement
-    expect(res.body.response).toContain('quantum computing');
+    // Stub provider returns an honest "not configured" message
+    expect(res.body.response).toContain('not configured');
   });
 });
 

@@ -135,6 +135,7 @@ describe('Learning Progress', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.progress.status).toBe('completed');
+    expect(res.body.progress.status).toBe('completed');
   });
 
   it('should reject progress update without auth', async () => {
