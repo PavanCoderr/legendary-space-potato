@@ -27,11 +27,13 @@ export interface EntanglementAssessment {
 }
 
 export function assessEntanglement(result: SimulationResult): EntanglementAssessment {
-  const mixedQubits = result.bloch
+  // Guard against incomplete backend response
+  const bloch = result.bloch ?? [];
+  const mixedQubits = bloch
     .map((vector, qubit) => ({ qubit, magnitude: vector.magnitude }))
     .filter(entry => entry.magnitude < 0.999)
     .map(entry => entry.qubit);
-  const maxMagnitude = result.bloch.reduce((max, vector) => Math.max(max, vector.magnitude), 0);
+  const maxMagnitude = bloch.reduce((max, vector) => Math.max(max, vector.magnitude), 0);
   const notes: string[] = [];
   if (result.numQubits === 1) {
     notes.push('A single qubit cannot be entangled with anything, so its Bloch vector keeps its full length.');
@@ -51,6 +53,8 @@ export function assessEntanglement(result: SimulationResult): EntanglementAssess
 }
 
 export function significantStates(result: SimulationResult, threshold = 1e-9): BasisAmplitude[] {
+  // Guard against incomplete backend response
+  if (!result.probabilities) return [];
   return result.probabilities.filter(entry => entry.probability > threshold);
 }
 
@@ -153,7 +157,9 @@ export function measurementSummary(result: SimulationResult): MeasurementSummary
 
 /** Warnings the simulator or the validator produced, in a form ready for the UI. */
 export function simulationWarnings(result: SimulationResult): string[] {
-  const warnings = [...result.warnings];
+  const warnings = [...(result.warnings ?? [])];
+  // Guard against backend returning incomplete simulation results
+  if (!result.probabilities) return warnings;
   const sum = result.probabilities.reduce((acc, entry) => acc + entry.probability, 0);
   if (Math.abs(sum - 1) > 1e-6) {
     warnings.push(`Probabilities summed to ${sum.toFixed(6)} instead of 1 — rerun the circuit.`);
