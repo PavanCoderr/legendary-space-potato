@@ -206,18 +206,18 @@ function explainResult(context: TutorContext): string {
     .map(entry => `${entry.label} — ideal ${(entry.probability * 100).toFixed(2)}%`);
   lines.push(`State: ${describeState(sim)}.`);
   lines.push(`Ideal probabilities from the state vector: ${top.join(', ')}.`);
-  const counts = sim.measurement.buckets
-    .slice(0, 5)
+  const counts = sim.measurement?.buckets
+    ?.slice(0, 5)
     .map(bucket => `${bucket.label} × ${bucket.count} (${(bucket.measuredProbability * 100).toFixed(1)}%)`)
-    .join(', ');
+    .join(', ') ?? 'N/A';
   lines.push(
     `Measured over ${sim.shots} shots: ${counts || 'nothing sampled'}. Counts fluctuate by roughly √((p(1−p))/shots) around the ideal values — that is genuine measurement randomness, not an error.`,
   );
-  if (sim.bloch.some(vector => vector.isMixed) && sim.numQubits > 1) {
+  if ((sim.bloch?.some(vector => vector.isMixed) ?? false) && sim.numQubits > 1) {
     lines.push(
       `Notice the Bloch vector lengths: ${sim.bloch
-        .map((vector, index) => `q${index} ${vector.magnitude.toFixed(2)}`)
-        .join(', ')}. Anything below 1 means that qubit is correlated with the rest of the register (entanglement or prior measurement).`,
+        ?.map((vector, index) => `q${index} ${vector.magnitude.toFixed(2)}`)
+        .join(', ') ?? 'N/A'}. Anything below 1 means that qubit is correlated with the rest of the register (entanglement or prior measurement).`,
     );
   }
   const warnings = simulationWarnings(sim);
