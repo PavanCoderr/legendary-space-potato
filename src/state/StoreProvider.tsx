@@ -109,12 +109,19 @@ const StoreContext = createContext<StoreValue | null>(null);
 /** Builds the context object the tutor is allowed to read. */
 function tutorContext(state: AppState, route: string) {
   const challenge = getChallenge(state.challengeId);
+  // Normalize simulation result to ensure arrays are never undefined
+  // (backend may return partial results on auth failure or errors)
+  const normalizedSimulation = state.simulation.result ? {
+    ...state.simulation.result,
+    probabilities: state.simulation.result.probabilities ?? [],
+    bloch: state.simulation.result.bloch ?? [],
+  } : null;
   return {
     route,
     lesson: state.currentLessonId ? (getLesson(state.currentLessonId) ?? null) : null,
     circuit: state.circuit,
     selectedGate: state.selectedGate,
-    simulation: state.simulation.result,
+    simulation: normalizedSimulation,
     simulationStale: state.simulation.stale,
     challenge,
     challengeAttempts: challenge
