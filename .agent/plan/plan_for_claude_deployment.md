@@ -51,6 +51,10 @@ broken build.
 - Backend: Express 5, long-running server (`backend/src/server.ts`), file-based SQLite
   (`DATABASE_URL`, default `./data/qubitverse.db`), seeds content at boot
   (`initializeDatabase()` + `seedDatabase()`) — fresh DB seeds fine on each deploy.
+  ⚠️ UPDATE 2026-09-19 (deploy attempt #2): `server.ts:40-50` is a PRODUCTION BOOT
+  GUARD — with `NODE_ENV=production` it `process.exit(1)`s unless `DATABASE_URL` or
+  `POSTGRES_URL` is set. On Render: `DATABASE_URL=/tmp/qubitverse.db` (SQLite file
+  path — see §3). The DB layer consumes it as the sqlite filename.
 - `server.ts` already: serves `/health`, requires `JWT_SECRET` in production, gates
   debug endpoints off in production, CORS from `CORS_ORIGIN`, respects `PORT`.
 - `backend/package.json`: `"start": "tsx src/server.ts"` — `tsx` is currently a
@@ -95,6 +99,51 @@ broken build.
 - Original task text (for reference): pin a currently-available OpenRouter `:free`
   model id — made moot by the user's provider choice.
 
+### DEP6 (P0, added 2026-09-19) — sqlite3 GLIBC crash on Render (blocks boot)
+
+**Observed in the user's first deploy (commit `1dd7b0e`):** build 🎉, then boot crash —
+`Error: /lib/x86_64-linux-gnu/libm.so.6: version \`GLIBC_2.38\' not found (required by
+.../node_modules/sqlite3/build/Release/node_sqlite3.node)` → `ERR_DLOPEN_FAILED` →
+crash loop. Full diagnosis: `.agent/report/2026-09-19-render-glibc-deploy-failure.md`.
+Cause: `sqlite3@6.0.1`'s prebuilt native binary is compiled against glibc 2.38;
+Render's native Node image (Ubuntu 22.04) ships glibc 2.35. Node version is
+IRRELEVANT here (NAPI binary — same download for Node 22/24); do not chase it.
+
+#### DEP6a — USER fix, ~2 minutes (try this FIRST)
+
+1. Render dashboard → backend service → **Settings** → **Build Command**:
+   `npm ci` → **`npm ci --build-from-source=sqlite3`** → Save (auto-redeploys).
+   Alternate form if the flag is ignored: `npm ci && npm rebuild sqlite3 --build-from-source`.
+2. Deploy passes ONLY if the build log shows sqlite3 **compiling from source**
+   (`node-gyp rebuild` … `gyp info ok`) and the boot log reaches
+   `[db] Database initialized` with NO `ERR_DLOPEN_FAILED`.
+3. Continue plan_for_user.md Part 2.5+ exactly as written.
+
+#### DEP6b — Claude's fallback (code change) — ONLY if 6a's build fails
+
+Do NOT start speculatively. Trigger: 6a build error (missing build tools) or a
+second `ERR_DLOPEN_FAILED` after a source compile. Scope (small, surgical):
+
+1. `backend/package.json`: remove `sqlite3` AND `sqlite`; add `better-sqlite3`
+   + `@types/better-sqlite3` (devDeps). Reason: better-sqlite3 prebuilds target
+   glibc ≥ 2.29 (load on 2.35) and it falls back to clean source builds on any OS.
+2. `backend/src/db/index.ts` ONLY: swap `open({ filename, driver })` for a
+   `new Database(filename)` wrapped in a **tiny adapter exposing the same async
+   surface** the codebase already consumes: `run/get/all` returning Promises
+   (better-sqlite3 statements are sync; `await` on their results is legal, so the
+   ~113 `db.run/db.all/db.exec` call sites in routes/rewards/seed/migrations stay
+   untouched), plus `exec(sql)` passthrough and the exported `SqliteDatabase`
+   type (2 type-only imports in `db/migrations/001/002` point at the same type).
+3. Semantics to preserve (acceptance-checked):
+   - positional params: driver-style `db.run(sql, a, b, c)` calls must map to
+     `stmt.run(...normalize(args))` — accept both varargs and a single array;
+   - `db.all` returns real arrays (`better-sqlite3` `.all()` does too);
+   - `BEGIN`/`COMMIT`/`ROLLBACK` via `.exec()` unchanged (rewards + seed);
+   - `PRAGMA foreign_keys = ON` and the existing migrations flow unchanged.
+4. Verification gate before hand-back: `cd backend && npm run typecheck` exit 0
+   AND `npm test` → **156/156 pasted into the progress log**. Then commit; the
+   user redeploys with build command back to plain `npm ci`.
+
 ### DEP4 (P2, optional) — Fix `CORS_ORIGIN` multi-origin parsing
 - Only needed if the user wants Vercel PREVIEW urls to call the backend too. For a
   single-production-domain hackathon deploy, skip it and set one origin.
@@ -112,12 +161,17 @@ After DEP1–DEP3: re-run the D2 suite once and paste summaries.
 1. Render dashboard → **New → Web Service** → connect the repo.
 2. Settings:
    - **Root Directory:** `backend`
-   - **Build Command:** `npm ci`
+   - **Build Command:** `npm ci --build-from-source=sqlite3` (DEP6a — compiles the native sqlite3 on Render's glibc-2.35 image; plain `npm ci` downloads a prebuild that crash-loops at boot, verified 2026-09-19)
    - **Start Command:** `npm start`
    - **Health Check Path:** `/health`
    - **Instance Type:** Free
 3. **No disk** (free tier has none — that is the accepted ephemeral-data tradeoff).
-   Leave `DATABASE_URL` UNSET so the default `./data/qubitverse.db` is used.
+   ⚠️ CORRECTED 2026-09-19 (deploy attempt #2): `DATABASE_URL` MUST be set — the
+   production boot guard (`server.ts:40-50`) calls `process.exit(1)` when
+   `NODE_ENV=production` and neither `DATABASE_URL` nor `POSTGRES_URL` is present.
+   Set **`DATABASE_URL=/tmp/qubitverse.db`** (a SQLite FILE PATH — the DB layer
+   uses it as the sqlite filename, boot-seeds it fresh; not a secret; Postgres
+   NOT involved). The original "leave it unset" advice was wrong.
 4. Environment variables (Render → Environment):
    - `NODE_ENV=production` (required: enables the JWT_SECRET guard, disables debug endpoints)
    - `JWT_SECRET=<generate: openssl rand -base64 32>` — never commit it anywhere
@@ -126,8 +180,10 @@ After DEP1–DEP3: re-run the D2 suite once and paste summaries.
    - `OPENAI_BASE_URL=https://vyceai.com/v1` — routes the OpenAI-compatible client to vyceai (DEP3, verified 2026-09-19)
    - `OPENAI_MODEL=agnes-3.0-flash` — verified working (HTTP 200 test call)
    - `MAX_SHOTS=10000` (explicit, optional)
-   - Do NOT set `PORT` (Render injects it) and do NOT set `DATABASE_URL`.
-5. Deploy → confirm the log shows clean startup (no `[server] FATAL`) and
+   - Do NOT set `PORT` (Render injects it). DO set `DATABASE_URL=/tmp/qubitverse.db`
+     (corrected 2026-09-19 — required by the prod boot guard; SQLite file path).
+5. Deploy → confirm the log shows clean startup (no `[server] FATAL`; the two
+   possible FATALs are `JWT_SECRET` and `DATABASE_URL`, both env fixes) and
    `curl https://<service>.onrender.com/health` → `{"status":"ok","service":"qubitverse-backend"}`.
 
 Free-tier mechanics: the service sleeps after ~15 min without traffic; expect a
@@ -144,6 +200,12 @@ one always-on service fits within that.
 2. **Redeploy** — Vite bakes env vars at build time; the current deployment will not
    pick this up until rebuilt.
 3. No rewrite/redirect config needed: routing is hash-based.
+   - NOTE (2026-09-19): Vercel's npm 11.6+ logs `npm warn allow-scripts` for
+     `esbuild@0.28.2 (postinstall)` — warn-only on npm 11.x, build succeeded.
+     Fixed for npm 12 by adding `"allowScripts": { "esbuild": true }` to the ROOT
+     package.json (user-approved; uncommitted — rides with the next push). If new
+     packages ever appear in that warning, approve them individually after review
+     — do NOT blanket-allow scripts.
 4. If the Vercel domain changes later (custom domain), update BOTH `CORS_ORIGIN`
    (Render) and `VITE_API_BASE_URL` (Vercel) + redeploy frontend.
 
@@ -189,6 +251,10 @@ Run against PRODUCTION URLs; paste outputs into the progress log:
     network tab shows NO key material client-side.
 12. Rate limit: 11 failed logins → 429 on the 11th (validates DEP2 behind the proxy).
 13. Shots cap: `POST /api/simulate` with `shots: 999999999` → response shows the capped value.
+14. **DEP6 evidence:** build log shows sqlite3 compiled from source (`gyp info ok`,
+    no prebuild download) and boot log reaches `[db] Database initialized` with no
+    `ERR_DLOPEN_FAILED`. (If DEP6b was used instead: `better-sqlite3` loads, same
+    boot evidence.) Note: source builds add ~1–3 min to every deploy — accepted.
 
 ## 7. Ops after go-live (free-tier edition)
 
@@ -219,7 +285,9 @@ When Claude reports "deployed", Buffy verifies claim-by-claim:
    only in Render env settings; chosen `:free` model id logged.
 4. `git ls-files` shows no DB file tracked.
 5. Render settings screenshot/log evidence: `NODE_ENV=production` set, health path
-   `/health`, root dir `backend`, free instance, no disk assumed.
+   `/health`, root dir `backend`, free instance, no disk assumed, build command
+   `npm ci --build-from-source=sqlite3` (DEP6a), `DATABASE_URL` set to a SQLite
+   file path (boot-guard requirement, corrected 2026-09-19).
 6. Ephemerality check (§6.6) explicitly evidenced and acknowledged.
 
 — Buffy

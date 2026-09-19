@@ -40,57 +40,64 @@ correctly**. Nothing left to pick or create.
 
 ## Part 2 — Render: backend service (after DEP1+DEP2 land)
 
-> 🚨 **GATE (2026-09-19): ALL the work is committed locally (commit `68ab2c7`) but
-> NOT yet pushed. Run `git push origin master` FIRST** — Render builds from
-> GitHub, so deploying before the push ships stale code that cannot boot. This
-> push step is yours (Buffy committed locally on your approval; push left to you).
-> After pushing: Parts 2–3 are UNBLOCKED — Claude's DEP1+DEP2 are landed and
-> verified, D2 is green, and the AI-tutor env vars are the three OPENAI_* ones
-> from Part 1 (vyceai), not OpenRouter.
+> 🚨 **GATE (2026-09-19, update 2): GLIBC blocker RESOLVED ✅** — build command
+> `npm ci --build-from-source=sqlite3` worked (build 1m10s, boot got past the
+> sqlite3 load, no `ERR_DLOPEN_FAILED`). **NEW blocker:**
+> `[server] FATAL: DATABASE_URL or POSTGRES_URL must be set in production`
+> (`server.ts:46` prod boot guard — the earlier "leave DATABASE_URL unset"
+> advice was WRONG). **FIX (~1 min):** add env var `DATABASE_URL=/tmp/qubitverse.db`
+> (step 2.5 table), Save → auto-redeploy. Success = boot reaches
+> `[db] Database initialized` + listening; then continue 2.7–2.9.
+> Diagnosis: `.agent/report/2026-09-19-render-deploy-fix-2-database-url.md`.
 
-- [ ] 2.1 Sign in at https://render.com (GitHub login is fine).
-- [ ] 2.2 New → **Web Service** → connect this GitHub repo.
-- [ ] 2.3 Settings:
+- [x] 2.1 Sign in at https://render.com (GitHub login is fine).
+- [x] 2.2 New → **Web Service** → connect this GitHub repo.
+- [x] 2.3 Settings:
       | Setting | Value |
       |---|---|
       | Root Directory | `backend` |
       | Runtime | Node |
-      | Build Command | `npm ci` |
+      | Build Command | `npm ci --build-from-source=sqlite3` ⚠️ NOT plain `npm ci` — fixes the GLIBC boot crash (step 2.3 of the appendix, note b) |
       | Start Command | `npm start` |
       | Health Check Path | `/health` |
       | Instance Type | **Free** |
-- [ ] 2.4 **No disk** — free tier has none; leave `DATABASE_URL` UNSET (the app
-      defaults to a local SQLite file and seeds itself on boot).
-- [ ] 2.5 Environment variables (Render → Environment):
+- [x] 2.4 **No disk** — free tier has none; the DB is a local ephemeral SQLite file.
+      ⚠️ CORRECTED 2026-09-19 (deploy attempt #2): `DATABASE_URL` MUST be set —
+      see the env table in 2.5 (`/tmp/qubitverse.db`). The prod boot guard
+      (`server.ts:46`) exits without it. Plain file path, not a secret; Postgres
+      NOT involved.
+- [x] 2.5 Environment variables (Render → Environment):
       | Key | Value | Notes |
       |---|---|---|
       | `NODE_ENV` | `production` | required — enables the JWT secret guard, disables debug endpoints |
       | `JWT_SECRET` | *(generate — see 2.6)* | never commit anywhere |
       | `CORS_ORIGIN` | `https://<your-vercel-domain>` | ONE origin, https, NO trailing slash |
+      | `DATABASE_URL` | `/tmp/qubitverse.db` | ⚠️ REQUIRED (updated 2026-09-19): SQLite FILE PATH, satisfies the prod boot guard `server.ts:46`; ephemeral + boot-seeded; NOT a secret. Postgres NOT involved. |
       | `OPENAI_API_KEY` | the vyceai key (copy from `backend/.env`) | server-side only — never in Vercel/frontend/repo |
       | `OPENAI_BASE_URL` | `https://vyceai.com/v1` | routes the OpenAI-compatible client to vyceai |
       | `OPENAI_MODEL` | `agnes-3.0-flash` | verified working 2026-09-19 |
       | `MAX_SHOTS` | `10000` | optional but explicit |
-      Do **NOT** set `PORT` (Render injects it) or `DATABASE_URL`.
-- [ ] 2.6 Generate `JWT_SECRET` in your own terminal:
+      Do **NOT** set `PORT` (Render injects it). **DO set** `DATABASE_URL=/tmp/qubitverse.db`
+      (corrected 2026-09-19 — required by the prod boot guard; SQLite file path).
+- [x] 2.6 Generate `JWT_SECRET` in your own terminal:
       `openssl rand -base64 32` (or any long random string from a password manager).
-- [ ] 2.7 Deploy → watch the log: it must show clean startup (no `FATAL`), DB
+- [x] 2.7 Deploy → watch the log: it must show clean startup (no `FATAL`), DB
       seeding, and the port Render assigned.
-- [ ] 2.8 Paste your Render service URL (e.g. `https://qubitverse-backend.onrender.com`)
+- [x] 2.8 Paste your Render service URL (e.g. `https://qubitverse-backend.onrender.com`)
       into the chat so the env-var wiring in Part 3 is exact.
-- [ ] 2.9 Sanity check: open `https://<service-url>/health` in a browser →
+- [x] 2.9 Sanity check: open `https://<service-url>/health` in a browser →
       `{"status":"ok","service":"qubitverse-backend"}`. First load after idle may
       take 30–60 s (free-tier cold start — normal).
 
 ## Part 3 — Vercel: wire the existing frontend
 
-- [ ] 3.1 Vercel dashboard → your existing QubitVerse project → Settings →
+- [x] 3.1 Vercel dashboard → your existing QubitVerse project → Settings →
       Environment Variables → add:
       `VITE_API_BASE_URL = https://<service-url-from-2.8>` (no trailing slash).
       Apply to **Production** (Preview too if you want).
-- [ ] 3.2 **Redeploy** the project (Deployments → Redeploy). This is mandatory —
+- [x] 3.2 **Redeploy** the project (Deployments → Redeploy). This is mandatory —
       Vite bakes env vars at build time; the current deployment won't pick it up.
-- [ ] 3.3 Cross-check: `CORS_ORIGIN` (Render) and the browser origin of the Vercel
+- [x] 3.3 Cross-check: `CORS_ORIGIN` (Render) and the browser origin of the Vercel
       app must be the SAME domain, byte-for-byte, or API calls will fail CORS.
 
 ## Part 4 — Post-deploy verification (evidence or it didn't happen)
@@ -132,7 +139,7 @@ Full detail: deployment plan §6.
 ## Do-NOT list
 
 - Don't commit `.env`, DB files, or any key.
-- Don't set `PORT` / `DATABASE_URL` on Render.
+- Don't set `PORT` on Render (Render injects it). **Do set `DATABASE_URL=/tmp/qubitverse.db`** (SQLite file path, required by the prod boot guard — updated 2026-09-19).
 - Don't migrate to Turso/Postgres now (documented upgrade path, deployment plan §8 —
   explicitly out of scope per your decision).
 - Don't rename/redo frontend hosting — we wire the EXISTING Vercel project only.
@@ -176,14 +183,16 @@ If asked "deploy an existing repo vs blueprint", pick **existing repo**, find
 | **Language / Runtime** | **Node** | Express server |
 | **Branch** | `master` (your default) | pushes here trigger auto-deploys |
 | **Root Directory** | `backend` ⚠️ critical | monorepo — without this, `npm ci` runs in the repo root where there's no `package.json` and the build dies instantly |
-| **Build Command** | `npm ci` | clean install per lockfile — never `npm install` |
+| **Build Command** | `npm ci --build-from-source=sqlite3` ⚠️ changed 2026-09-19 | clean install per lockfile **+ compile the sqlite3 native module on Render itself**. Plain `npm ci` downloads a prebuilt binary that needs glibc 2.38; Render's image has 2.35 → boot crash `ERR_DLOPEN_FAILED` (see note b). Cost: ~1–3 min extra build time. Never `npm install`. |
 | **Start Command** | `npm start` | runs `tsx src/server.ts` (DEP1 must have landed, else boot fails) |
 | **Health Check Path** | `/health` | Render pings it after boot; deploy counts "live" only on 200 |
 | **Instance Type** | **Free** | the $0 choice; "spin down after 15 min" warning = accepted tradeoff |
 
-**2.4 — No disk.** Skip the **Disks** section entirely (free tier has none; and we
-intentionally leave `DATABASE_URL` unset — the server creates + seeds its own local
-SQLite at boot).
+**2.4 — No disk.** Skip the **Disks** section entirely (free tier has none). The
+server creates + seeds its own local SQLite at boot — **but** the production boot
+guard (`server.ts:46`) requires `DATABASE_URL` to be SET: add
+`DATABASE_URL=/tmp/qubitverse.db` in step 2.5 (plain file path, not a secret;
+updated 2026-09-19 — earlier advice to leave it unset was wrong).
 
 **2.5 — Environment variables.** Same creation page → **Environment Variables** →
 **Add Environment Variable**, one row each: `NODE_ENV=production`, `JWT_SECRET`
@@ -194,7 +203,8 @@ save** (nobody can read them back — by design).
 ⚠️ Two common mistakes:
 - `CORS_ORIGIN` must be the **exact** Vercel URL: `https://your-app.vercel.app` —
   https included, **no trailing slash**, no path.
-- Do **NOT** add `PORT` (Render injects it) or `DATABASE_URL`.
+- Do **NOT** add `PORT` (Render injects it). **DO** add `DATABASE_URL=/tmp/qubitverse.db`
+  (updated 2026-09-19 — required by the prod boot guard; SQLite file path).
 
 **2.6 — Generate JWT_SECRET** before reaching the env-var form. In any terminal
 (Codespace is fine): `openssl rand -base64 32` → copy output → paste as the value.
@@ -213,6 +223,22 @@ refuses to boot in production without `JWT_SECRET`), or `tsx: not found` /
 **2.9 — Health check.** Open `<url>/health` in a browser. If the service was idle,
 the tab may spin **30–60 s** first (cold start — normal). Expected body:
 `{"status":"ok","service":"qubitverse-backend"}`.
+
+**Notes for 2.3/2.7:**
+
+- **(a)** The start command stays `npm start` — it runs `tsx src/server.ts`
+  (tsx is a real dependency since DEP1; no change).
+- **(b) GLIBC fix (why the build command changed):** `sqlite3` is a native C++
+  module. Plain `npm ci` downloads a prebuilt binary compiled against glibc 2.38;
+  Render's Ubuntu 22.04 image has glibc 2.35 → at boot Node cannot load it:
+  `version 'GLIBC_2.38' not found … ERR_DLOPEN_FAILED`. `--build-from-source=sqlite3`
+  compiles the module ON Render's own image → glibc match guaranteed. Healthy
+  deploy = build log shows `node-gyp rebuild`/`gyp info ok` for sqlite3, boot log
+  shows `[db] Database initialized` and NO `ERR_DLOPEN_FAILED`. If the build
+  instead fails (e.g. compiler errors) → STOP, paste the log to Buffy — Claude's
+  code-level fallback (DEP6b: swap to better-sqlite3 behind a tiny adapter) is
+  already specced in the deployment plan. **Do not try downgrading Node or
+  `sqlite3` versions — Node version does not matter here (NAPI binary).**
 
 💡 **Editing env vars later:** service page → **Environment** tab (left sidebar) →
 edit → **Save Changes**. Saving triggers an automatic redeploy (which wipes the
@@ -267,6 +293,7 @@ service, so leaving it on is fine.
 | Render build fails instantly, "no package.json" | Root Directory not set to `backend` |
 | Boot log: `tsx: not found` / module error | DEP1 not landed — stop, tell Buffy |
 | Boot log: FATAL about JWT_SECRET | `NODE_ENV=production` set but `JWT_SECRET` missing/typo'd key name |
+| Boot log: `FATAL: DATABASE_URL or POSTGRES_URL must be set in production` | Add `DATABASE_URL=/tmp/qubitverse.db` (SQLite file path — prod boot guard `server.ts:46`, updated 2026-09-19) |
 | Frontend loads but says "Local storage" mode | `VITE_API_BASE_URL` missing **or** deployed before adding it — redeploy |
 | Browser console CORS errors | `CORS_ORIGIN` ≠ exact Vercel domain (trailing slash / wrong domain) |
 | Every user gets rate-limited globally | DEP2 (`trust proxy`) missing — tell Buffy |
