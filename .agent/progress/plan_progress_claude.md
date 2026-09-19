@@ -219,12 +219,22 @@ Evidence: `.agent/report/2026-09-18-learning-content-review.md`. Content edits g
 
 **Root cause:** Frontend expects authenticated API calls, but when the backend returns 401 (due to ephemeral DB wipe), the AI provider code crashes on accessing undefined/null properties.
 
-**Fixes applied in commit `f7147ce`:**
+**Fixes applied in commits:**
+
+`f7147ce` - Initial DEF7c fixes:
 - `src/services/llm.ts` line 69: Added null-check `provider.apiKey || !provider.apiKey.trim()` to prevent crash when apiKey is undefined/empty
 - `src/services/llm.ts` lines 38-48: Added optional chaining `?.` for simulation properties that can be null
 - `src/services/tutor.ts` line 158: Added `?.` for `lastCodeIssues.length`
 - `src/services/tutor.ts` lines 296-297: Added null-safety for `challenge.hints` and `challengeAttempts`
 
+`57e0018` - DEF7d: Added guards in `simulationWarnings()`, `assessEntanglement()`, and `significantStates()` in `src/services/analysis.ts` to handle undefined `probabilities` and `bloch` arrays
+
+`3ec9d16` - DEF7e: Added `Array.isArray` guard for `codeIssues` in `tutorContext()` function
+
+`b98fe7a` - DEF7f: Additional guards in `explainResult()` for undefined `measurement.buckets` and `bloch`
+
+`4d4df26` - DEF7g: Fixed operator precedence issue in `buildSystemPrompt()` where filter/map chain on optional `probabilities` would crash when undefined
+
 **Test results:** All 108 frontend tests + 157 backend tests pass. Typecheck: OK. Build: success.
 
-**Status:** Ready for user redeployment of frontend.
+**Status:** ✅ All fixes complete and verified. Ready for user redeployment of frontend.
