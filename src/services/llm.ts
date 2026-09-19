@@ -35,8 +35,9 @@ export function buildSystemPrompt(request: TutorRequest): string {
           ? {
               shots: context.simulation.shots,
               stale: context.simulationStale,
-              probabilities: (context.simulation.probabilities?.filter(entry => entry.probability > 1e-9)
-                .map(entry => ({ state: entry.label, probability: Number(entry.probability.toFixed(4)) })) ?? []),
+              probabilities: context.simulation.probabilities
+ ? context.simulation.probabilities.filter(entry => entry.probability > 1e-9).map(entry => ({ state: entry.label, probability: Number(entry.probability.toFixed(4)) }))
+ : [],
               counts: context.simulation.measurement?.buckets?.map(bucket => ({ state: bucket.label, count: bucket.count })) ?? [],
               bloch: context.simulation.bloch?.map((vector, index) => ({
                 qubit: index,
