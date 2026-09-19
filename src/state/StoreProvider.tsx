@@ -121,7 +121,9 @@ function tutorContext(state: AppState, route: string) {
       ? state.challengeAttempts.filter(attempt => attempt.challengeId === challenge.id).length
       : 0,
     lastChallengeChecks: state.challengeChecks,
-    lastCodeIssues: state.codeIssues.map(issue => `Line ${issue.line}: ${issue.message}`),
+    lastCodeIssues: Array.isArray(state.codeIssues)
+ ? state.codeIssues.map(issue => `Line ${issue.line}: ${issue.message}`)
+ : [],
     progress: state.currentLessonId ? lessonProgressOf(state, state.currentLessonId) : null,
     xp: state.user.xp,
     streak: streakOf(state),
