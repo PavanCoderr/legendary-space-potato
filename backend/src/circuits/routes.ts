@@ -59,7 +59,7 @@ export function registerCircuitRoutes(): Router {
     try {
       const db = await getDb();
       // Look up circuit
-      const circuit = await db.get(
+      const circuit = await db.get<{ circuit: string }>(
         'SELECT circuit FROM projects WHERE id = ? AND user_id = ?',
         id,
         user.id
@@ -71,7 +71,7 @@ export function registerCircuitRoutes(): Router {
         circuitData = circuit.circuit;
       } else {
         // Fallback to lesson-based circuits if not a saved project
-        const lessonCircuit = await db.get(
+        const lessonCircuit = await db.get<{ circuit: string }>(
           'SELECT circuit FROM lesson_circuits WHERE id = ?',
           id
         );

@@ -24,6 +24,23 @@ export interface QuizQuestion {
   order: number;
 }
 
+interface LessonProgress {
+  user_id: string;
+  lesson_id: string;
+  status: 'not-started' | 'in-progress' | 'completed';
+  concept_read: boolean;
+  video_watched: boolean;
+  interactive_done: boolean;
+  simulation_run: boolean;
+  tutor_asked: boolean;
+  challenge_passed: boolean;
+  quiz_correct: number;
+  quiz_total: number;
+  started_at: string | null;
+  completed_at: string | null;
+  last_visited_at: string | null;
+}
+
 /**
  * Register quiz-related routes.
  *
@@ -130,7 +147,7 @@ export function registerQuizRoutes(): Router {
 
       // Update lesson progress quiz counts
       if (effectiveLessonId) {
-        const progress = await db.get(
+        const progress = await db.get<LessonProgress>(
           'SELECT * FROM lesson_progress WHERE user_id = ? AND lesson_id = ?',
           user.id,
           effectiveLessonId,
@@ -233,7 +250,7 @@ export function registerQuizRoutes(): Router {
 
     // Update lesson progress quiz counts
     if (quiz?.lesson_id) {
-      const progress = await db.get(
+      const progress = await db.get<LessonProgress>(
         'SELECT * FROM lesson_progress WHERE user_id = ? AND lesson_id = ?',
         user.id,
         quiz.lesson_id
@@ -291,7 +308,7 @@ export function registerQuizRoutes(): Router {
 
     const db = await getDb();
 
-    const attempts = await db.all(
+    const attempts = await db.all<{ id: string; user_id: string; quiz_id: string; lesson_id: string; selected_index: number; correct: number; attempted_at: string; created_at: string }[]>(
       'SELECT * FROM quiz_attempts WHERE user_id = ? AND quiz_id = ? ORDER BY attempted_at DESC',
       user.id,
       quizId

@@ -155,9 +155,8 @@ export async function awardXp(
   try {
     // Record the XP award in the ledger. Use INSERT OR IGNORE so the
     // UNIQUE(user_id, source_type, source_id) constraint enforces idempotency:
-    // the same quiz lesson, etc. can be awarded at most once. If the insert
-    // is ignored (duplicate), `changes` will be 0 and we skip the XP bump.
-    const insertResult = await db.run(
+    // the same quiz lesson, etc. can be awarded at most once.
+    const result = await db.run(
       `INSERT OR IGNORE INTO xp_ledger (id, user_id, amount, reason, source_type, source_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       uuidv4(),
@@ -169,7 +168,9 @@ export async function awardXp(
       now,
     );
 
-    const awarded = (insertResult.changes ?? 0) > 0;
+    // Check if the insert succeeded by counting affected rows
+    const checkResult = await db.get<{ count: number }>('SELECT changes() as count');
+    const awarded = (checkResult?.count ?? 0) > 0;
 
     // Only update user XP if the ledger row was actually inserted
     if (awarded) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
-import { replaceLessons, type Lesson } from './api';
+import { replaceLessons } from './api';
 import { LESSONS, LESSON_MAP, TOTAL_LESSON_XP } from '../data/lessons';
 
 /**

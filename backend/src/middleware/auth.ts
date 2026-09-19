@@ -30,7 +30,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   if (payload.jti) {
     try {
       const db = await getDb();
-      const session = await db.get(
+      const session = await db.get<{ user_id: string; expires_at: string | null }>(
         'SELECT user_id, expires_at FROM sessions WHERE id = ?',
         payload.jti,
       );

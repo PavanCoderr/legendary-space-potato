@@ -4,6 +4,72 @@ import { v4 as uuidv4 } from 'uuid';
 import { getUser } from '../middleware/auth';
 import { getUserProgress } from '../rewards';
 
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  level: string;
+  xp: number;
+  streak: number;
+  last_active_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Activities {
+  user_id: string;
+  simulations: number;
+  lessons_completed: number;
+  quizzes_taken: number;
+  challenges_passed: number;
+  active_days: string;
+  last_active_at: string | null;
+  total_shots: number;
+  updated_at: string;
+}
+
+interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  circuit: string;
+  code: string | null;
+  lesson_id: string | null;
+  status: string;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface LessonProgress {
+  user_id: string;
+  lesson_id: string;
+  status: 'not-started' | 'in-progress' | 'completed';
+  concept_read: boolean;
+  video_watched: boolean;
+  interactive_done: boolean;
+  simulation_run: boolean;
+  tutor_asked: boolean;
+  challenge_passed: boolean;
+  quiz_correct: number;
+  quiz_total: number;
+  started_at: string | null;
+  completed_at: string | null;
+  last_visited_at: string | null;
+}
+
+interface QuizAttempt {
+  id: string;
+  user_id: string;
+  quiz_id: string;
+  lesson_id: string;
+  selected_index: number;
+  correct: number;
+  attempted_at: string;
+  created_at: string;
+}
+
 /**
  * Register user state routes.
  *
@@ -31,10 +97,13 @@ export function registerStateRoutes(): Router {
     const db = await getDb();
 
     // Get user info
-    const dbUser = await db.get('SELECT * FROM users WHERE id = ?', user.id);
+    const dbUser = await db.get<User>(
+      'SELECT * FROM users WHERE id = ?',
+      user.id
+    );
 
     // Get activities (create default if none exists)
-    let activities = await db.get(
+    let activities = await db.get<Activities>(
       'SELECT * FROM activities WHERE user_id = ?',
       user.id
     );
@@ -48,11 +117,11 @@ export function registerStateRoutes(): Router {
         new Date().toISOString(),
         new Date().toISOString()
       );
-      activities = await db.get('SELECT * FROM activities WHERE user_id = ?', user.id);
+      activities = await db.get<Activities>('SELECT * FROM activities WHERE user_id = ?', user.id);
     }
 
     // Get recent projects
-    const recentCircuits = await db.all(
+    const recentCircuits = await db.all<Project>(
       'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC LIMIT 10',
       user.id
     );
@@ -192,7 +261,7 @@ export function registerStateRoutes(): Router {
       const now = new Date().toISOString();
 
       // Update or create project
-      const existing = await db.get(
+      const existing = await db.get<Project>(
         'SELECT * FROM projects WHERE id = ? AND user_id = ?',
         id,
         user.id
@@ -261,7 +330,7 @@ export function registerStateRoutes(): Router {
 
     const db = await getDb();
 
-    const progress = await db.get(
+    const progress = await db.get<LessonProgress>(
       'SELECT * FROM lesson_progress WHERE user_id = ? AND lesson_id = ?',
       user.id,
       lessonId
@@ -287,7 +356,7 @@ export function registerStateRoutes(): Router {
 
     const db = await getDb();
 
-    const attempts = await db.all(
+    const attempts = await db.all<QuizAttempt>(
       'SELECT * FROM quiz_attempts WHERE user_id = ? AND quiz_id = ? ORDER BY attempted_at ASC',
       user.id,
       quizId

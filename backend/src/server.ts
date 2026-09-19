@@ -38,9 +38,15 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Validate required environment at startup
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  console.error('[server] FATAL: JWT_SECRET must be set in production');
-  process.exit(1);
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET) {
+    console.error('[server] FATAL: JWT_SECRET must be set in production');
+    process.exit(1);
+  }
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+    console.error('[server] FATAL: DATABASE_URL or POSTGRES_URL must be set in production');
+    process.exit(1);
+  }
 }
 
 // Health check

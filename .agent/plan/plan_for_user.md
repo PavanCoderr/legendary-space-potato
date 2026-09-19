@@ -40,6 +40,14 @@ correctly**. Nothing left to pick or create.
 
 ## Part 2 — Render: backend service (after DEP1+DEP2 land)
 
+> 🚨 **GATE (2026-09-19): ALL the work is committed locally (commit `68ab2c7`) but
+> NOT yet pushed. Run `git push origin master` FIRST** — Render builds from
+> GitHub, so deploying before the push ships stale code that cannot boot. This
+> push step is yours (Buffy committed locally on your approval; push left to you).
+> After pushing: Parts 2–3 are UNBLOCKED — Claude's DEP1+DEP2 are landed and
+> verified, D2 is green, and the AI-tutor env vars are the three OPENAI_* ones
+> from Part 1 (vyceai), not OpenRouter.
+
 - [ ] 2.1 Sign in at https://render.com (GitHub login is fine).
 - [ ] 2.2 New → **Web Service** → connect this GitHub repo.
 - [ ] 2.3 Settings:

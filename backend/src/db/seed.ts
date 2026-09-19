@@ -3,6 +3,7 @@ import { LESSONS } from '../data/lessons';
 import { QUIZZES } from '../data/quizzes';
 import { CHALLENGES } from '../data/challenges';
 import { TOPICS } from '../data/topics';
+import { GLOSSARY } from '../data/glossary';
 
 /**
  * Seed educational content from the existing frontend data modules.
@@ -197,6 +198,15 @@ export async function seedDatabase(): Promise<void> {
     });
   }
 
+  // Seed glossary
+  for (const entry of GLOSSARY) {
+    await db.run(
+      `INSERT OR REPLACE INTO glossary (term, definition) VALUES (?, ?)`,
+      entry.term,
+      entry.definition,
+    );
+  }
+
   await db.run('COMMIT');
-  console.log(`[seed] Seeded ${LESSONS.length} lessons, ${QUIZZES.length} quizzes, ${CHALLENGES.length} challenges`);
+  console.log(`[seed] Seeded ${LESSONS.length} lessons, ${QUIZZES.length} quizzes, ${CHALLENGES.length} challenges, ${GLOSSARY.length} glossary terms`);
 }
