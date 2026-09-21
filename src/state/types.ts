@@ -75,6 +75,7 @@ export type Action =
   | { type: 'quiz/submit'; attempt: QuizAttempt }
   | { type: 'challenge/submit'; challengeId: string; shots?: number }
   | { type: 'challenge/submit-result'; attempt: ChallengeAttempt; challengeId: string; checks: ChallengeCheck[] }
+  | { type: 'challenge/submit-from-server'; attempt: ChallengeAttempt; challengeId: string; checks: ChallengeCheck[] }
   | { type: 'challenge/set-active'; challengeId: string | null }
   | { type: 'challenge/set-submitting'; submitting: boolean }
   | { type: 'circuit/set'; circuit: QuantumCircuit; toast?: string }

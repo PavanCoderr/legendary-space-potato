@@ -187,3 +187,70 @@ describe('bootstrapLessons DEP4-test', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('submitChallenge', () => {
+  it('local mode: evaluates a passing circuit with real simulation', async () => {
+    const { createLocalApi } = await import('./api');
+    const api = createLocalApi();
+
+    // The bit-flip challenge passes when an X gate turns |0⟩ into |1⟩
+    const circuit = {
+      name: 'Bit flip',
+      numQubits: 1,
+      ops: [{ type: 'X', qubits: [0], column: 0 }],
+    };
+
+    const result = await api.submitChallenge('challenge-bit-flip', circuit, 1000, 42);
+
+    expect(result.success).toBe(true);
+    expect(result.passed).toBe(true);
+    expect(result.checks.length).toBeGreaterThan(0);
+    expect(result.checks.every(c => c.passed)).toBe(true);
+    expect(result.xpAwarded).toBeGreaterThan(0);
+  });
+
+  it('local mode: fails an empty circuit (no gate applied)', async () => {
+    const { createLocalApi } = await import('./api');
+    const api = createLocalApi();
+
+    const circuit = {
+      name: 'Empty',
+      numQubits: 1,
+      ops: [],
+    };
+
+    const result = await api.submitChallenge('challenge-bit-flip', circuit);
+
+    expect(result.success).toBe(true);
+    expect(result.passed).toBe(false);
+    expect(result.xpAwarded).toBe(0);
+  });
+
+  it('local mode: produces deterministic results with a fixed seed', async () => {
+    const { createLocalApi } = await import('./api');
+    const api = createLocalApi();
+
+    const circuit = {
+      name: 'Superposition',
+      numQubits: 1,
+      ops: [
+        { type: 'H', qubits: [0], column: 0 },
+        { type: 'M', qubits: [0], column: 1 },
+      ],
+    };
+
+    const result1 = await api.submitChallenge('challenge-superposition', circuit, 1000, 42);
+    const result2 = await api.submitChallenge('challenge-superposition', circuit, 1000, 42);
+
+    expect(result1.passed).toBe(result2.passed);
+  });
+
+  it('local mode: throws on unknown challenge', async () => {
+    const { createLocalApi } = await import('./api');
+    const api = createLocalApi();
+
+    await expect(api.submitChallenge('does-not-exist', { name: 'test', numQubits: 1, ops: [] })).rejects.toThrow(
+      'Challenge not found',
+    );
+  });
+});

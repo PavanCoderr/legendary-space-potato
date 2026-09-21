@@ -1,7 +1,8 @@
 import { LESSONS, replaceLessons as replaceLessonsFromLessons } from '../data/lessons';
+import { getChallenge } from '../data/challenges';
 import type { AiProviderSettings, Lesson, QuizAttempt } from '../data/types';
-import type { QuantumCircuit } from '../quantum/circuit';
-import { runSimulation, type SimulationOptions, type SimulationResult } from '../quantum/simulator';
+import { deserializeCircuit, type QuantumCircuit, type SerializedCircuit } from '../quantum/circuit';
+import { createSeededRandom, runSimulation, simulate, type SimulationOptions, type SimulationResult } from '../quantum/simulator';
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '../state/persistence';
 import type { PersistedSnapshot } from '../state/types';
 import { localTutorReply, type TutorReply, type TutorRequest } from './tutor';
@@ -27,6 +28,7 @@ import bcrypt from 'bcryptjs';
  * | `fetchLessons`  | `GET  /api/lessons`    | —               | `Lesson[]` |
  * | `saveProgress`  | `POST /api/progress`   | snapshot        | — |
  * | `submitQuiz`    | `POST /api/quiz/submit`| `QuizAttempt`   | `{ recorded, explanation? }` |
+ * | `submitChallenge`| `POST /api/challenges/:id/submit`| `{ circuit, shots?, seed? }` | `{ success, passed, checks, xpAwarded }` |
  * | `askTutor`      | `POST /api/ai/explain` | `{ prompt, action, context, apiKey?, baseUrl?, model?, temperature? }` | `TutorReply` |
  * | `askHint`       | `POST /api/ai/hint`    | `{ prompt, action, context, apiKey?, baseUrl?, model?, temperature? }` | `TutorReply` |
  * | `signup`        | `POST /api/signup`     | `{ email, password, name, level }` | `{ user, token }` |
@@ -50,6 +52,13 @@ export interface QubitVerseApi {
   /** Progress sync. Named separately from saveState to match the documented endpoint. */
   saveProgress(snapshot: PersistedSnapshot): Promise<void>;
   submitQuiz(attempt: QuizAttempt): Promise<{ recorded: boolean; explanation?: string }>;
+  /** Submit a circuit for challenge evaluation (server-side simulation + validation). */
+  submitChallenge(challengeId: string, circuit: SerializedCircuit, shots?: number, seed?: number): Promise<{
+    success: boolean;
+    passed: boolean;
+    checks: { id: string; label: string; passed: boolean; detail: string }[];
+    xpAwarded: number;
+  }>;
   /** Authenticate (signup or login) with the backend, returning user + JWT token. */
   signup(email: string, password: string, name?: string, level?: string): Promise<{ user: any; token: string }>;
   login(email: string, password: string): Promise<{ user: any; token: string }>;
@@ -147,6 +156,35 @@ export function createLocalApi(): QubitVerseApi {
     async submitQuiz(attempt) {
       // Answer checking happens in the reducer against the local quiz bank.
       return { recorded: false, explanation: attempt.correct ? 'Correct.' : 'Not quite.' };
+    },
+    async submitChallenge(challengeId, circuit, shots, seed) {
+      // Local mode: run the simulation + validation right here in the frontend,
+      // mirroring what the backend does so challenges work without a server.
+      const challenge = getChallenge(challengeId);
+      if (!challenge) {
+        throw new Error(`Challenge not found: ${challengeId}`);
+      }
+
+      const { circuit: qc, issues } = deserializeCircuit(circuit, `Challenge ${challengeId}`);
+      if (issues.length > 0) {
+        throw new Error(`Invalid circuit: ${issues.join(', ')}`);
+      }
+
+      const effectiveShots = Math.min(shots ?? challenge.shots, 10000);
+      const options: { shots: number; random?: () => number } = { shots: effectiveShots };
+      if (typeof seed === 'number' && !isNaN(seed)) {
+        options.random = createSeededRandom(seed);
+      }
+
+      const simulation = simulate(qc, options);
+      const checks = challenge.validate({ circuit: qc, simulation });
+
+      return {
+        success: true,
+        passed: checks.every(c => c.passed),
+        checks: checks.map(c => ({ id: c.id, label: c.label, passed: c.passed, detail: c.detail })),
+        xpAwarded: checks.every(c => c.passed) ? challenge.xp : 0,
+      };
     },
     // Local-only mode: password hashes are stored in localStorage and compared with
     // bcrypt, so a wrong password is genuinely rejected even without a backend.
@@ -331,6 +369,19 @@ export function createHttpApi(baseUrl: string): QubitVerseApi {
       } catch (error) {
         console.warn('[qubitverse] remote quiz submission failed, keeping the local answer', error);
         return local.submitQuiz(attempt);
+      }
+    },
+    async submitChallenge(challengeId, circuit, shots, seed) {
+      try {
+        return await post<{
+          success: boolean;
+          passed: boolean;
+          checks: { id: string; label: string; passed: boolean; detail: string }[];
+          xpAwarded: number;
+        }>(`/api/challenges/${challengeId}/submit`, { circuit, shots, seed }, `/api/challenges/${challengeId}/submit`);
+      } catch (error) {
+        console.warn('[qubitverse] remote challenge submission unavailable, evaluating locally', error);
+        return local.submitChallenge(challengeId, circuit, shots, seed);
       }
     },
     async signup(email, password, name, level) {

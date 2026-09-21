@@ -375,6 +375,35 @@ export function reducer(state: AppState, action: Action): AppState {
       return syncAchievements(completeLessonIfDone(next, challenge.lessonId));
     }
 
+    case 'challenge/submit-from-server': {
+      const challenge = getChallenge(action.challengeId);
+      let next: AppState = {
+        ...state,
+        challengeAttempts: [...state.challengeAttempts, action.attempt].slice(-200),
+        challengeChecks: action.checks,
+        challengeSubmitting: false,
+      };
+      if (action.attempt.xpAwarded > 0) {
+        next = { ...next, user: { ...next.user, xp: next.user.xp + action.attempt.xpAwarded } };
+      }
+      if (challenge) {
+        if (action.attempt.passed) {
+          next = withProgress(next, challenge.lessonId, () => ({ challengePassed: true }));
+          next = toast(
+            next,
+            action.attempt.xpAwarded > 0
+              ? `Challenge passed: ${challenge.title} (+${action.attempt.xpAwarded} XP)`
+              : `Challenge passed again: ${challenge.title}`,
+            'success',
+          );
+        } else {
+          next = toast(next, 'Not yet — read the failing checks below and try again.', 'error');
+        }
+        next = syncAchievements(completeLessonIfDone(next, challenge.lessonId));
+      }
+      return next;
+    }
+
     case 'circuit/set':
       return markCircuitDirty(state, action.circuit, action.toast);
 

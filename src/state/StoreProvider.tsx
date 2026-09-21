@@ -11,7 +11,7 @@ import {
 import { getChallenge } from '../data/challenges';
 import { getLesson } from '../data/lessons';
 import { SAMPLE_CIRCUITS } from '../data/presets';
-import type { AppSettings, LearningLevel, Project, Quiz, TutorMessage } from '../data/types';
+import type { AppSettings, ChallengeAttempt, ChallengeCheck, LearningLevel, Project, Quiz, TutorMessage } from '../data/types';
 import { circuitToCode, parseCode, type CodeIssue } from '../quantum/code';
 import {
   cloneCircuit,
@@ -73,7 +73,7 @@ export interface StoreActions {
 
   /** Practice */
   openChallenge: (challengeId: string | null) => void;
-  submitChallenge: () => void;
+  submitChallenge: () => Promise<void>;
   openLessonChallenge: (lessonId: string) => void;
 
   /** Projects */
@@ -322,13 +322,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const challenge = getChallenge(challengeId);
         if (challenge) loadSerialized(challenge.starterCircuit);
       },
-      submitChallenge: () => {
+      submitChallenge: async () => {
         const challengeId = stateRef.current.challengeId;
         if (!challengeId) {
           dispatch({ type: 'toast', text: 'Open a challenge before submitting.', tone: 'error' });
           return;
         }
         dispatch({ type: 'challenge/set-submitting', submitting: true });
+
+        // In HTTP mode, submit to the backend which runs the real simulator
+        // server-side and returns validated checks + awarded XP.
+        if (api.kind === 'http') {
+          try {
+            const current = stateRef.current;
+            const challenge = getChallenge(challengeId);
+            const shots = challenge?.shots ?? current.settings.shots;
+            const seed = current.settings.useFixedSeed ? current.settings.seed : undefined;
+
+            const result = await api.submitChallenge(challengeId, current.circuit, shots, seed);
+
+            const checks: ChallengeCheck[] = result.checks.map(c => ({
+              id: c.id,
+              label: c.label,
+              passed: c.passed,
+              detail: c.detail,
+            }));
+
+            const attempt: ChallengeAttempt = {
+              id: newId('challenge-attempt'),
+              challengeId,
+              passed: result.passed,
+              checks: checks.map(check => ({
+                label: check.label,
+                passed: check.passed,
+                detail: check.detail,
+              })),
+              attemptedAt: nowIso(),
+              xpAwarded: result.xpAwarded,
+            };
+
+            dispatch({ type: 'challenge/submit-from-server', attempt, challengeId, checks });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            dispatch({ type: 'toast', text: `Challenge submission failed: ${message}`, tone: 'error' });
+            dispatch({ type: 'challenge/set-submitting', submitting: false });
+          }
+          return;
+        }
+
+        // Local mode: the reducer runs the simulator and validator synchronously
         dispatch({ type: 'challenge/submit', challengeId });
       },
       openLessonChallenge: lessonId => {
