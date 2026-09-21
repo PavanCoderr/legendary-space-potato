@@ -7,6 +7,7 @@ coverage/
 .aider*
 *.db
 /data/
+.claude/
 .env
 .env.*
 !.env.example
