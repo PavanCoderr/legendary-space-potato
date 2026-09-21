@@ -238,3 +238,25 @@ Evidence: `.agent/report/2026-09-18-learning-content-review.md`. Content edits g
 **Test results:** All 108 frontend tests + 157 backend tests pass. Typecheck: OK. Build: success.
 
 **Status:** ✅ All fixes complete and verified. Ready for user redeployment of frontend.
+
+## 2026-09-21 Session — Verification & Memory Update
+
+### Live deployment verification
+- **Backend live on Render**: `https://qubitverse-backend.onrender.com` — `/health` returns `{"status":"ok","service":"qubitverse-backend"}` ✅
+- **CORS fix confirmed**: User fixed `CORS_ORIGIN` trailing slash via Render dashboard (no code change needed) ✅
+- **Null user.name crash fixed (DEP7b)**: All three layers implemented — `applySnapshot` name guard (persistence.ts), `(name ?? '').split()` in Avatar (ui.tsx), backend signup defaults to email prefix (auth/routes.ts) ✅
+
+### Commit status
+- **1 unpushed commit**: `3c4bc02 BF3-frontend: Wire up submitChallenge in frontend API + HTTP mode integration`
+  - Adds `submitChallenge` to QubitVerseApi interface (local + HTTP)
+  - Local mode: real simulation + challenge validation via quantum simulator
+  - HTTP mode: POST /api/challenges/:id/submit with fallback
+  - Added reducer action `challenge/submit-from-server`, async StoreProvider
+  - **User action needed**: `git push origin master`
+
+### Current test results (verified)
+- Backend: 18 test files, 157 tests passed ✅
+- Frontend (root): 16 test files, 112 tests passed ✅ (was 103, +9 from BF3-frontend tests)
+- Root typecheck: exit 0 ✅
+- Root build: success ✅
+- Backend typecheck: exit 0 ✅
