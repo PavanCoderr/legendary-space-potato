@@ -26,7 +26,7 @@ import {
 import { api } from '../services/api';
 import type { TutorAction } from '../services/tutor';
 import { DEFAULT_SETTINGS, nowIso } from './defaults';
-import { loadInitialState, snapshotFromState } from './persistence';
+import { loadUserSnapshot, loadInitialState, saveUserSnapshot, snapshotFromState } from './persistence';
 import { reducer } from './reducer';
 import { lessonProgressOf, streakOf } from './selectors';
 import { applyTheme, applyThemeAnimated, watchSystemTheme } from './theme';
@@ -143,11 +143,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
 
   // Persist (debounced) — the whole app state lives in one snapshot.
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const handle = window.setTimeout(() => {
-      void api.saveState(snapshotFromState(state));
+    // Cancel any pending persist before scheduling a new one
+    if (persistTimerRef.current !== null) {
+      clearTimeout(persistTimerRef.current);
+    }
+
+    const handle = setTimeout(() => {
+      const snapshot = snapshotFromState(stateRef.current);
+      void api.saveState(snapshot);
+      // In local mode, also save per-user snapshot for progress isolation.
+      if (api.kind === 'local' && stateRef.current.session.signedIn && !stateRef.current.session.demo && stateRef.current.session.email) {
+        saveUserSnapshot(stateRef.current.session.email, snapshot);
+      }
     }, 250);
-    return () => window.clearTimeout(handle);
+    persistTimerRef.current = handle;
+
+    return () => {
+      if (persistTimerRef.current !== null) {
+        clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
   }, [state]);
 
   // Toasts clear themselves so notifications never block the UI.
@@ -426,17 +445,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
         try {
           // Try login first; only fall back to signup when the user doesn't exist.
-          // A wrong password must NOT trigger signup — it should fail with an error.
+          // Security: we treat "Invalid credentials" as potentially either wrong password
+          // OR non-existent user (same error message prevents user enumeration). If signup
+          // fails with "User already exists", we know the login would have used wrong password.
           let result;
           try {
             result = await api.login(email, password);
-          } catch (loginError) {
-            // Distinguish "user not found" (fall back to signup) from "wrong password" (reject).
-            const msg = loginError instanceof Error ? loginError.message : String(loginError);
-            const userNotFound =
-              msg.includes('not found') || msg.toLowerCase().includes('no such user');
-            if (!userNotFound) throw loginError;
-            result = await api.signup(email, password, name, level);
+          } catch {
+            // Try signup - if user already exists, the login failed with wrong password
+            try {
+              result = await api.signup(email, password, name, level);
+            } catch (signupError) {
+              const signupMsg = signupError instanceof Error ? signupError.message : String(signupError);
+              if (signupMsg.includes('already exists') || signupMsg.includes('User already')) {
+                // User exists but wrong password
+                throw new Error('Incorrect email or password');
+              }
+              // Some other signup error
+              throw signupError;
+            }
           }
 
           dispatch({
@@ -449,21 +476,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           });
 
           // Load the user's saved snapshot. In HTTP mode this is token-scoped server
-          // state; in local mode it's the (already-cleared-on-sign-out) browser snapshot.
-          const remoteState = await api.loadState();
-          if (remoteState) {
-            dispatch({ type: 'state/hydrate', persisted: remoteState });
-            // The snapshot may carry a stale user/name from the browser's debounced
-            // save; re-assert the identity returned by the auth endpoint so the freshly
-            // signed-in user is always the one reflected on screen.
-            dispatch({
-              type: 'session/sign-in',
-              email: result.user.email,
-              name: result.user.name ?? name,
-              level: result.user.level ?? level,
-              demo: false,
-              authToken: result.token,
-            });
+          // state; in local mode (non-demo), check per-user snapshot only.
+          // For new users, don't fall back to global state (each user gets fresh state).
+          if (api.kind === 'local') {
+            const userSnapshot = loadUserSnapshot(result.user.email);
+            if (userSnapshot) {
+              dispatch({ type: 'state/hydrate', persisted: userSnapshot });
+            }
+            // Save an initial per-user snapshot for this user (preserves progress across sessions)
+            saveUserSnapshot(result.user.email, snapshotFromState(stateRef.current));
+          } else {
+            // HTTP mode: server holds the state
+            const remoteState = await api.loadState();
+            if (remoteState) {
+              dispatch({ type: 'state/hydrate', persisted: remoteState });
+              // The snapshot may carry a stale user/name from the browser's debounced
+              // save; re-assert the identity returned by the auth endpoint so the freshly
+              // signed-in user is always the one reflected on screen.
+              dispatch({
+                type: 'session/sign-in',
+                email: result.user.email,
+                name: result.user.name ?? name,
+                level: result.user.level ?? level,
+                demo: false,
+                authToken: result.token,
+              });
+            }
           }
 
           return true;
@@ -479,6 +517,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
+        // Belt-and-braces: save the current user's snapshot before clearing.
+        // This preserves their progress in localStorage keyed by email.
+        const currentEmail = stateRef.current.session.email;
+        if (currentEmail && !stateRef.current.session.demo) {
+          saveUserSnapshot(currentEmail, snapshotFromState(stateRef.current));
+        }
+
         // Dispatch first so the reducer resets all per-user state (progress, projects, etc.)
         // before the next debounced persist fires. If clearState() runs before the dispatch,
         // the 250ms debounced save will re-write the old (pre-clear) state back to localStorage.
@@ -486,6 +531,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         await api.logout();
         // Clear any locally persisted snapshot so the next user starts fresh.
         await api.clearState();
+
+        // Auto-sign-in as demo learner for seamless demo experience.
+        dispatch({
+          type: 'session/sign-in',
+          email: 'alex@qubitverse.dev',
+          name: 'Demo Learner',
+          level: 'Beginner',
+          demo: true,
+          authToken: null,
+        });
       },
       setLearningLevel: level => dispatch({ type: 'session/set-level', level }),
 

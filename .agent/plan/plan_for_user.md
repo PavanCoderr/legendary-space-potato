@@ -1,4 +1,57 @@
-# Plan for USER — deployment & user-side tasks (QubitVerse, $0 free tier)
+# Plan for USER — SUBMISSION-DAY checklist (frontend-only pivot, 2026-09-23)
+
+**This Part 0 supersedes the Render deployment below** (kept for later if you re-enable
+the backend). Evidence: `.agent/report/2026-09-23-frontend-only-pivot-plan.md`.
+
+The site ships frontend-only: accounts + progress live in the **browser's localStorage**;
+sign-in keeps working (real password checks, bcrypt-hashed, per browser); the demo
+learner is one click; **sign-out lands on the Dashboard as the demo learner**. The
+`backend/` folder and the Render service stay parked — do NOT delete either.
+
+## Part 0 — your steps (Vercel dashboard only, ~30 min)
+
+- [ ] 0.1 Wait for Claude: Phase F1+F2 done with typecheck/test/build summaries pasted
+      in `.agent/progress/plan_progress_claude.md`.
+- [ ] 0.2 Vercel → your QubitVerse project → **Settings → Environment Variables** →
+      **delete `VITE_API_BASE_URL`** → Save. (This one deletion IS the backend disconnect.)
+- [ ] 0.3 **Deployments → Redeploy** (mandatory — Vite bakes env vars at build time).
+- [ ] 0.4 Verify (~5 min) on the live URL:
+      - App loads; the mode label shows **"Local storage + in-browser simulator"**.
+      - Browser Network tab: **zero calls** to `qubitverse-backend.onrender.com`.
+      - Sign up (fresh email) → open a lesson → earn XP → **Sign out → you land on the
+        DASHBOARD as the demo learner** (Profile badge: "demo learner"), no login page.
+      - Sign in again with the same email → **your progress is back** (per-user scoping).
+      - Sign up a second user → they see their own empty progress, not user one's data.
+      - Try a wrong password → genuinely rejected.
+- [ ] 0.5 Demo-day AI (your decision): Settings → AI provider → mode
+      **openai-compatible**, base URL `https://vyceai.com/v1`, model `agnes-3.0-flash`,
+      paste YOUR key (the one in `backend/.env`). The key is visible in the browser —
+      that tradeoff is accepted; **rotate the key on the provider dashboard after the
+      demo** (it was exposed once already).
+- [ ] 0.6 Rehearsal (10 min, incognito): landing → "Continue as the demo learner" →
+      lesson → Bell simulation (`00`/`11` ≈ 50/50) → quiz → challenge → sign out →
+      dashboard → sign in as your demo account → progress visible.
+- [ ] 0.7 Tell Buffy "pivot deployed" — I audit claim-by-claim against 0.4.
+
+### Demo-day talking points (honest framing)
+- Accounts + progress are stored per browser (localStorage) — switching devices/browser
+  starts fresh. Say it before a judge asks.
+- The backend exists and is fully built (auth, XP ledger, RLS-style checks, real
+  simulator) — it's switched off by one env var for the submission; the code path is
+  still in the app.
+
+| Step | Owner | Status |
+|---|---|---|
+| 0.1 Claude lands F1+F2 | Claude | ☐ |
+| 0.2–0.3 Vercel env delete + redeploy | USER | ☐ |
+| 0.4 Verification | USER (+ Buffy audit) | ☐ |
+| 0.5–0.6 Demo-day AI + rehearsal | USER | ☐ |
+
+---
+
+# ⬇️ HISTORICAL — backend deployment track (PAUSED 2026-09-23, do not execute) ⬇️
+
+# Plan for USER — deployment & user-side tasks (QubitVerse, $0 free tier) (superseded)
 
 Written by Buffy (planner) 2026-09-19. Companion to `plan_for_claude_deployment.md`
 (full technical detail lives there) and Review #4

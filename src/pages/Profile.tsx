@@ -146,7 +146,7 @@ export function ProfilePage() {
                 className="btn-small btn-ghost"
                 onClick={() => {
                   void actions.signOut();
-                  navigate('login');
+                  navigate('dashboard');
                 }}
               >
                 <LogOut size={13} /> Sign out

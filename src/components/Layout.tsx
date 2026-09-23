@@ -267,8 +267,8 @@ export function Layout({
                   <button
                     className="menu-item danger"
                     onClick={() => {
-                      appActions.signOut();
-                      navigate('login');
+                      void appActions.signOut();
+                      navigate('dashboard');
                     }}
                   >
                     <LogOut size={15} /> Sign out

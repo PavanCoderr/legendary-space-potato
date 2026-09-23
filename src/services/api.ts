@@ -209,7 +209,7 @@ export function createLocalApi(): QubitVerseApi {
 
       const users = hydrateLocalUsers();
       const record = users.get(email);
-      if (!record) throw new Error('User not found');
+      if (!record) throw new Error('Invalid credentials');
 
       const ok = await bcrypt.compare(password, record.passwordHash);
       if (!ok) throw new Error('Invalid credentials');

@@ -1,15 +1,107 @@
-# Plan for Claude CLI — QubitVerse Backend Hardening & Completion
+# Plan for Claude CLI — FRONTEND-ONLY PIVOT (submission build)
+
+**USER DECISION 2026-09-23 (submission tomorrow): ship FRONTEND-ONLY.** Accounts +
+progress live in localStorage; demo sign-in; sign-out lands on the dashboard. The
+`backend/` folder is PAUSED, NOT deleted — do not touch it. Evidence and decisions:
+`.agent/report/2026-09-23-frontend-only-pivot-plan.md` — read it first.
+
+Execute ONLY Phase F below, in order. The Ground rules section further down still
+applies. Everything BELOW the `HISTORICAL` divider is the paused backend track — do
+not resume it without the user's explicit say-so.
+
+## Pivot ground rules (in addition to the Ground rules below)
+
+- `backend/`: zero reads for changes, zero edits, zero commands inside it.
+- No UI redesign: no styling/component/page/routing changes. Logic-only edits + tests.
+  Auth page stays exactly as-is (user decision: keep email/password form AND demo button).
+- Keep `createHttpApi`/token/bootstrap code — one env var must re-enable the backend later.
+- The user runs all Vercel/dashboard steps (`plan_for_user.md` Part 0). You do code + tests only.
+- Update `.agent/progress/plan_progress_claude.md` after EVERY task; paste typecheck/vitest
+  summaries (BF6 rule).
+- Ask the user before any git commit/push.
+
+## Phase F — frontend-only submission build
+
+### F1 (P0): Sign-out → demo learner → dashboard
+- Files: `src/state/StoreProvider.tsx` (`signOut`, ~line 481),
+  `src/components/Layout.tsx` (~line 267-272), `src/pages/Profile.tsx` (~line 146-151).
+- Today: `signOut()` = dispatch `session/sign-out` + `api.logout()` + `api.clearState()`;
+  both buttons then `navigate('login')`, and the auth gate (`src/App.tsx:36-38`) blocks
+  `#/dashboard` for signed-out visitors.
+- New behavior:
+  1. `signOut()` persists the signed-in user's snapshot per-user FIRST (F2), then
+     dispatch `session/sign-out`, `await api.logout()`, `await api.clearState()`, then
+     dispatch `session/sign-in` with `demo: true`, `email: 'alex@qubitverse.dev'`,
+     `name: 'Demo Learner'`, `level: 'Beginner'`, `authToken: null` — keep the identity
+     strings consistent with `src/pages/Auth.tsx:217`.
+  2. Both call sites: `navigate('dashboard')` instead of `navigate('login')`.
+- ⚠️ The user said "dashboard (hero page)". Default to `#/dashboard` (the app Dashboard).
+  If the user confirms they meant the public landing hero, the ONLY change is
+  `navigate('home')` at the same two call sites — ask before deviating.
+- Acceptance: from BOTH the Layout menu and Profile, sign-out lands on the Dashboard as
+  the demo learner (Profile badge shows "demo learner"); no login page in between; no
+  console errors; unit test covers the new `signOut` flow.
+
+### F2 (P0): Per-user progress scoping in localStorage
+- Why: `signOut` currently wipes the ONLY copy of progress in local mode (reducer resets
+  + `clearState`), so re-sign-in would show empty progress — violates the user's
+  requirement "if user sign in then user can see their progress data".
+- Files: `src/state/persistence.ts` (new functions, mirror the existing try/catch +
+  console.warn pattern), `src/state/StoreProvider.tsx` (debounced save ~145-150,
+  `signIn` ~420-470, `signOut`, `resetEverything`).
+- Design:
+  - `persistence.ts`: `loadUserSnapshot(email)` / `saveUserSnapshot(email, snapshot)` /
+    `clearUserSnapshot(email)` with key `qubitverse.snapshot.v1:${email.toLowerCase()}`.
+  - Debounced save: when `api.kind === 'local'` and `session.signedIn && !session.demo`
+    → also `saveUserSnapshot(session.email, snapshot)`.
+  - `signIn` (local mode, non-demo): after auth success, hydrate from
+    `loadUserSnapshot(email)` when present, else fall back to `api.loadState()`.
+  - `signOut`: `saveUserSnapshot(currentEmail, stateRef.current)` BEFORE clearing
+    (belt-and-braces against the 250 ms debounce race — see the comment at
+    `StoreProvider.tsx:483`).
+  - `resetEverything`: also `clearUserSnapshot(current email)` when signed in non-demo.
+- Acceptance (unit test): signup → progress change → sign out → dashboard (demo) →
+  sign in as the same user → progress restored; a DIFFERENT user sees their own (empty)
+  progress, not the first user's data.
+
+### F3 (P1): AI-settings path verification (likely ZERO code)
+- User decision: at demo time they paste their own key in Settings (openai-compatible,
+  base URL `https://vyceai.com/v1`, model `agnes-3.0-flash`). In local mode `askTutor`
+  already routes that through `remoteTutorReply` (`api.ts:127-131` →
+  `services/llm.ts`); without a key the built-in tutor answers.
+- Verify shipped defaults are NOT openai-compatible (so nothing calls out until the user
+  adds a key) and the error/fallback path degrades to the built-in tutor. Fix only if a
+  default is wrong; otherwise log "verified, no change".
+
+### F4 (P0): Full verification gate (BF6 rule — paste ALL summaries into the progress file)
+- Root only, no backend commands: `npm run typecheck`, `npm test`, `npm run build`.
+- Also confirm the production bundle contains no Render URL
+  (`grep -r "onrender.com" dist/` should come back empty after the env var is removed
+  from the build — the USER controls that on Vercel; locally just verify the label
+  "Local storage + in-browser simulator" with no `VITE_API_BASE_URL` set).
+
+### F5: Log every task in `.agent/progress/plan_progress_claude.md` as you go.
+
+## Out of scope until after submission
+- ALL historical phases below (backend hardening, deployment, DEP1-DEP7). The backend
+  folder and its Render service stay parked. Resume only on user instruction.
+
+---
+
+## ⬇️ HISTORICAL — backend hardening track (PAUSED 2026-09-23, do not execute) ⬇️
+
+# Plan for Claude CLI — QubitVerse Backend Hardening & Completion (superseded)
 
 Written by Buffy (planner) 2026-09-18. Based on the review in
 `.agent/report/2026-09-18-backend-review.md` — read that first for evidence and file:line
 references.
 
-**LATEST SESSION (2026-09-19): Review #4 → `.agent/report/2026-09-19-review-4-e4b-e6-c4-dep.md`.
+**LAST BACKEND SESSION (2026-09-19): Review #4 → `.agent/report/2026-09-19-review-4-e4b-e6-c4-dep.md`.
 E4b bootstrap IMPLEMENTED (main.tsx, 1.5 s race — one P1 gap: its unit test doesn't
 test the bootstrap, fix via plan §DEP4-test). E6 `video.chapters` DONE in both trees.
 C4 was ALREADY DONE (audit #3's "not started" line was stale — see §C4). Remaining
-code work: §DEP (DEP1 tsx→dependencies, DEP2 trust proxy, E4b test) → final D2 run →
-deployment per `plan_for_claude_deployment.md`.**
+code work was: §DEP (DEP1 tsx→dependencies, DEP2 trust proxy, E4b test) → final D2 run →
+deployment per `plan_for_claude_deployment.md` — all PAUSED by the 2026-09-23 pivot.**
 
 ## Ground rules (non-negotiable)
 

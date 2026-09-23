@@ -133,6 +133,50 @@ export function applySnapshot(base: AppState, snapshot: Partial<PersistedSnapsho
   };
 }
 
+/** Per-user snapshot key (scoped by email to preserve progress across sign-out/sign-in). */
+const USER_SNAPSHOT_KEY = (email: string) => `qubitverse.snapshot.v1:${email.toLowerCase()}`;
+
+/**
+ * Load a per-user snapshot from localStorage.
+ * Used when signing in as a different user to restore their progress.
+ */
+export function loadUserSnapshot(email: string): PersistedSnapshot | null {
+  try {
+    const raw = localStorage.getItem(USER_SNAPSHOT_KEY(email));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedSnapshot>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as PersistedSnapshot;
+  } catch (error) {
+    console.warn('[qubitverse] could not load user snapshot', error);
+    return null;
+  }
+}
+
+/**
+ * Save a per-user snapshot to localStorage.
+ * Called before sign-out to preserve the current user's progress.
+ */
+export function saveUserSnapshot(email: string, snapshot: PersistedSnapshot): void {
+  try {
+    localStorage.setItem(USER_SNAPSHOT_KEY(email), JSON.stringify(snapshot));
+  } catch (error) {
+    console.warn('[qubitverse] could not persist user snapshot', error);
+  }
+}
+
+/**
+ * Clear a per-user snapshot from localStorage.
+ * Used when resetting everything for a specific user.
+ */
+export function clearUserSnapshot(email: string): void {
+  try {
+    localStorage.removeItem(USER_SNAPSHOT_KEY(email));
+  } catch (error) {
+    console.warn('[qubitverse] could not clear user snapshot', error);
+  }
+}
+
 export function loadInitialState(): AppState {
   const base = createInitialState();
   const snapshot = loadSnapshot();
