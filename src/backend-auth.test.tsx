@@ -77,7 +77,7 @@ describe('Frontend Bug Reproduction Tests', () => {
       // Verify signup succeeded - user should now be logged in as Test User
       expect(document.body.textContent).toMatch(/Welcome back, Test User/);
 
-      // Step 2: Sign out (now auto-signs in as demo learner and navigates to dashboard)
+      // Step 2: Sign out - navigates to landing page (no auto-sign-in)
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /Profile menu/i }));
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -86,14 +86,18 @@ describe('Frontend Bug Reproduction Tests', () => {
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       });
 
-      // Step 3: After sign-out, user is auto-signed in as demo learner
-      // Demo learner is "Alex Rivera" (alex@qubitverse.dev), not "Test User"
+      // Step 3: After sign-out, user is on the landing page (not signed in as anyone)
       await waitFor(() => {
-        expect(document.body.textContent).toMatch(/Welcome back, Demo Learner|Welcome back, Alex Rivera/);
+        // Landing page shows "Get started" CTA, not a welcome message
+        expect(document.body.textContent).toMatch(/Get started|QubitVerse|Welcome/);
       });
 
+      // Should NOT see any signed-in user
+      const profileMenuAfterSignOut = screen.queryByRole('button', { name: /Profile menu/i });
+      expect(profileMenuAfterSignOut).toBeNull();
+
       // Step 4: Try to login with the correct email but WRONG password
-      // First navigate to login page
+      // Navigate to login page from landing page
       window.location.hash = '#/login';
       act(() => {
         window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -122,8 +126,9 @@ describe('Frontend Bug Reproduction Tests', () => {
       expect(profileMenu).toBeNull();
 
       // The login form should now show a clear inline error message
-      const inlineError = await screen.findByText(/Incorrect email or password/i);
-      expect(inlineError).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByText(/Incorrect email or password/i)).toBeTruthy();
+      });
     });
   });
 
@@ -175,7 +180,7 @@ describe('Frontend Bug Reproduction Tests', () => {
       expect(parsedA.progress['superposition']).toBeDefined();
       expect(parsedA.progress['superposition'].videoWatched).toBe(true);
 
-      // Step 3: Sign out User A (saves per-user snapshot, then auto-signins demo learner)
+      // Step 3: Sign out User A (saves per-user snapshot, navigates to landing page)
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /Profile menu/i }));
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -184,10 +189,14 @@ describe('Frontend Bug Reproduction Tests', () => {
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       });
 
-      // Should now be on dashboard as demo learner
+      // Should now be on landing page (not signed in)
       await waitFor(() => {
-        expect(document.body.textContent).toMatch(/Welcome back, Demo Learner|Dashboard/i);
+        expect(document.body.textContent).toMatch(/Get started|QubitVerse/);
       });
+
+      // Verify User A is not signed in
+      const profileMenu = screen.queryByRole('button', { name: /Profile menu/i });
+      expect(profileMenu).toBeNull();
 
       // Step 4: Navigate to signup and signup as User B (fresh account)
       window.location.hash = '#/signup';

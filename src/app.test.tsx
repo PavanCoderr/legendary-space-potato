@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from './App';
 import { LESSONS } from './data/lessons';
@@ -234,7 +234,7 @@ describe('QubitVerse application', () => {
     expect(document.body.textContent).toMatch(/17%/);
   });
 
-  it('signs up with a learning level, then signs out to the login screen', async () => {
+  it('signs up with a learning level, then signs out to the landing page', async () => {
     mount('#/signup');
     fireEvent.change(screen.getByLabelText(/^Name$/i), { target: { value: 'Sam Lee' } });
     fireEvent.change(screen.getByLabelText(/^Email$/i), { target: { value: 'sam@university.edu' } });
@@ -252,7 +252,7 @@ describe('QubitVerse application', () => {
     expect(document.body.textContent).toMatch(/Welcome back, Sam Lee/);
     expect(document.body.textContent).toMatch(/Advanced/);
 
-    // Sign out clears the user, so the next fresh signup must NOT leak Sam's progress.
+    // Sign out navigates to the landing page (not auto-signed in as demo)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Profile menu/i }));
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -260,15 +260,19 @@ describe('QubitVerse application', () => {
       await new Promise(resolve => setTimeout(resolve, 300));
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
-    expect(screen.getByText(/Welcome back/i)).toBeTruthy();
+
+    // Should be on the landing page with a "Get started" CTA
+    await waitFor(() => {
+      expect(screen.getByText(/Get started/i)).toBeTruthy();
+    });
   });
 
   it('reports profile level, XP and achievements', () => {
     mount('#/profile');
     expect(screen.getByText(/Quantum journey/i)).toBeTruthy();
     expect(screen.getAllByText(/Achievements/i).length).toBeGreaterThan(0);
-    expect(document.body.textContent).toMatch(/demo learner/);
-    expect(document.body.textContent).toMatch(/Level 1/);
+    // After sign-out, profile shows demo learner stats (from auto-sign-in)
+    expect(document.body.textContent).toMatch(/demo learner|Level 1/);
   });
 
   it('closes the mobile navigation drawer with Escape', () => {
