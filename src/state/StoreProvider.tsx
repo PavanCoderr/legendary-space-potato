@@ -533,6 +533,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         await api.clearState();
 
         // Auto-sign-in as demo learner for seamless demo experience.
+        // Don't show welcome toast for this anonymous fallback sign-in.
         dispatch({
           type: 'session/sign-in',
           email: 'alex@qubitverse.dev',
@@ -540,6 +541,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           level: 'Beginner',
           demo: true,
           authToken: null,
+          showWelcome: false,
         });
       },
       setLearningLevel: level => dispatch({ type: 'session/set-level', level }),

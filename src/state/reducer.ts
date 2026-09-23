@@ -111,24 +111,23 @@ export function reducer(state: AppState, action: Action): AppState {
      */
     case 'session/sign-in': {
       const name = action.name?.trim();
-      return toast(
-        {
-          ...state,
-          user: name ? { ...state.user, name: name.slice(0, 40) } : state.user,
-          session: {
-            ...state.session,
-            signedIn: true,
-            email: action.email.trim(),
-            level: action.level,
-            signedInAt: nowIso(),
-            demo: action.demo ?? false,
-            authToken: action.authToken ?? null,
-          },
-          activity: touchActivity(state),
+      // Auto-sign-in after sign-out is a demo fallback - don't show welcome toast
+      const welcomeText = action.showWelcome === false ? '' : `Welcome ${name ? name.slice(0, 40) : 'back'} — ${action.level} track.`;
+      const next = {
+        ...state,
+        user: name ? { ...state.user, name: name.slice(0, 40) } : state.user,
+        session: {
+          ...state.session,
+          signedIn: true,
+          email: action.email.trim(),
+          level: action.level,
+          signedInAt: nowIso(),
+          demo: action.demo ?? false,
+          authToken: action.authToken ?? null,
         },
-        `Welcome ${name ? name.slice(0, 40) : 'back'} — ${action.level} track.`,
-        'success',
-      );
+        activity: touchActivity(state),
+      };
+      return welcomeText ? toast(next, welcomeText, 'success') : next;
     }
 
     case 'session/sign-out':

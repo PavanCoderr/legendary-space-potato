@@ -59,7 +59,7 @@ export interface AppState {
 
 export type Action =
   | { type: 'state/hydrate'; persisted: Partial<PersistedSnapshot> }
-  | { type: 'session/sign-in'; email: string; name?: string; level: LearningLevel; demo?: boolean; authToken?: string | null }
+  | { type: 'session/sign-in'; email: string; name?: string; level: LearningLevel; demo?: boolean; authToken?: string | null; showWelcome?: boolean }
   | { type: 'session/sign-out' }
   | { type: 'session/set-level'; level: LearningLevel }
   | { type: 'user/rename'; name: string }
